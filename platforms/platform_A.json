@@ -1,0 +1,9 @@
+{
+  "platform_id": "A",
+  "name": "Standard CPU baseline",
+  "description": "Baseline environment. Uses the documented host or baseline container without additional CPU/memory constraints from the benchmark command.",
+  "requires_constraints": false,
+  "requested_cpu_quota_cores": null,
+  "requested_memory_mib": null,
+  "notes": "Always record the actual processor, architecture, CPU quota if present, memory, OS, and library versions. This label alone is not a hardware specification."
+}

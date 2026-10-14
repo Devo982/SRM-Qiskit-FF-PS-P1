@@ -1,0 +1,15 @@
+# Paste This Prompt into Your Coding Agent
+
+You are the implementation and verification agent for PS-P1: Quantum-Safe Hybrid Key Exchange. Work directly in this repository and perform the task; do not respond with only a plan.
+
+1. Read `AGENTS.md`, `TASKS.md`, `docs/PROTOCOL_SPEC.md`, `docs/IMPLEMENTATION_PLAN.md`, `docs/BENCHMARK_PROTOCOL.md`, and `docs/RESEARCH_CONTEXT.md` completely before editing.
+2. Execute `TASKS.md` stage-by-stage. Every stage has a hard verification gate. After each stage, run its actual checks, save the output under `results/logs/`, append a timestamped entry to `results/verification_log.md`, and only then update the task status.
+3. Inspect the starter code. Fix issues you discover; do not assume the scaffold is perfect. Preserve user-supplied reference materials. Do not delete data or overwrite previous benchmark results; every run gets a unique ID.
+4. Install and verify `cryptography` and official `liboqs-python`/native `liboqs`. The enabled mechanism must be `ML-KEM-768` (FIPS 203), not the legacy `Kyber768` name. If this cannot be installed, report the exact blocker and mark ML-KEM-dependent acceptance as BLOCKED. Never fake or mock the cryptographic operation in acceptance tests.
+5. Complete the ECDH-only, ML-KEM-only, and hybrid modes. Use ephemeral P-256 keys and fresh ML-KEM-768 key pairs per baseline handshake; build a canonical length-prefixed transcript; derive a 32-byte session key through HKDF-SHA-256 that depends on every secret required by the suite and binds the transcript. Never log private keys or shared/session secrets.
+6. Verify both parties' derived keys, standard encodings, payload byte counts, malformed-input behavior, and the exact implementation via automated tests. Respect ML-KEM implicit rejection; do not assume every mutated ciphertext raises an exception.
+7. Run a small pilot first. Then run the final workload (100 warmups, 1000 measured handshakes per suite per batch, 5 batches) on Platform A and Platform B. Platform B counts only if the CPU quota and memory cap are actually observable and recorded. Use the same container image/source/dependencies for both. Do not treat a platform label or JSON file as resource emulation.
+8. Generate report tables and plots from raw measured CSV data using scripts. Do not write illustrative numbers as observed results. Clearly separate local cryptographic execution time from network latency and distinguish a constrained container from a real embedded CPU.
+9. Finish with a truthful gate table, exact commands/results, paths to raw data/tables/plots, performance interpretation, limitations, and unresolved blockers. Do not pause for routine user approval. Do not claim production security: the baseline is unauthenticated and vulnerable to active man-in-the-middle attacks.
+
+Final commands must include `python -m src.cli check`, `python -m pytest -q`, `python -m src.cli handshake --mode all`, and full Platform A/B runs documented by `AGENTS.md`. A skipped test is not a passing ML-KEM gate.

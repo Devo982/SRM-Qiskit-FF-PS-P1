@@ -1,0 +1,13 @@
+.git
+.venv
+venv
+__pycache__
+.pytest_cache
+*.pyc
+data/raw/*.csv
+data/processed/*.json
+results/logs/*.log
+results/tables/*.csv
+results/tables/*.json
+results/figures/*.png
+reference_materials/Papers_uploaded_by_user.zip

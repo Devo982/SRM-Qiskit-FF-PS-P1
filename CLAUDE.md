@@ -1,0 +1,1 @@
+Read `AGENTS.md` and follow it as the controlling instruction set. Work through `TASKS.md` sequentially, verify every gate with real commands, capture evidence in `results/verification_log.md`, and do not fabricate test or benchmark results. Read `docs/PROTOCOL_SPEC.md`, `docs/IMPLEMENTATION_PLAN.md`, and `docs/BENCHMARK_PROTOCOL.md` before changing code.

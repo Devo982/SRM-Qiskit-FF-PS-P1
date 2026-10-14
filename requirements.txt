@@ -1,0 +1,7 @@
+cryptography>=44,<47
+liboqs-python>=0.14,<0.17
+psutil>=5.9,<8
+pytest>=8,<9
+pandas>=2.1,<4
+matplotlib>=3.8,<4
+cmake>=3.15,<5
