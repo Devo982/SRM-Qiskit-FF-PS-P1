@@ -1,0 +1,11 @@
+{
+  "platform_id": "B",
+  "name": "Constrained CPU emulation",
+  "description": "Same code/image as Platform A, constrained by OS/container scheduling and memory limits. This is not a real embedded device.",
+  "requires_constraints": true,
+  "required_cpu_quota_cores": 1.0,
+  "required_memory_mib": 512,
+  "docker_run_example": "docker run --rm --cpus=1 --memory=512m -v \"$PWD:/app\" -w /app ps-p1 python -m src.benchmark --platform B --iterations 1000 --warmup 100 --batches 5",
+  "verification": ["cgroup CPU quota must be detectable and <= required_cpu_quota_cores", "cgroup memory limit must be detectable and <= required_memory_mib"],
+  "notes": "Change limits only if documented before benchmarking; retain the same limit for all suites and record the exact observed values."
+}

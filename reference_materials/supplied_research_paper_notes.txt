@@ -1,0 +1,97 @@
+Here is a comprehensive summary of the findings, conclusions, and critical evaluations for each of the papers in your notebook, followed by an assessment of which paper is most relevant to your notebook's theme[1].
+
+---
+
+### **Summary, Findings, and Critical Review of Each Paper**
+
+#### **1\. Montenegro et al. —** **A performance evaluation framework for post-quantum TLS** (`1-s2.0-S0167739X25003577-main.pdf`)
+
+* **Summary &amp; Key Findings**: Presents an OpenSSL-based benchmarking framework to evaluate the performance impact and data overhead of integrating NIST-standardized Post-Quantum Cryptography (PQC) and hybrid primitives into Transport Layer Security (TLS 1.3) handshakes[2][3]. It evaluates Key Encapsulation Mechanisms (ML-KEM) and signature schemes (ML-DSA, Falcon, SLH-DSA/SPHINCS+, Mayo, CROSS) across NIST security levels I, III, and V[4].
+  * **KEM Performance**: **ML-KEM is the best-performing KEM approach**, outperforming traditional elliptic curve groups (like NIST P-256 and P-521) at higher security levels in connection throughput[5]. Hybrid KEMs combining ML-KEM with Curve25519/448 show slight execution slowdowns but minimal bandwidth penalties[8][10].
+  * **Signature Bottleneck**: Digital signatures and certificate sizes represent the primary performance bottleneck in PQ-TLS[6]. Hash-based signatures (SPHINCS+/SLH-DSA) suffer severe performance degradation, while multivariate/lattice schemes (Mayo, Falcon) offer substantially faster verification[6].
+  * **Operational Risks**: Highlights that HelloRetryRequest (HRR) negotiations increase transmission volume by 1.5–2.3×[15], and warns that misconfigured clients risk silent fallback to quantum-insecure classical algorithms[16].
+* **Critical Review &amp; Limitations**:
+  * **Scope**: Focuses strictly on standard signature-authenticated TLS handshakes; while it cites KEMTLS as a signature-free alternative, it does not benchmark KEM-based authentication directly[11].
+  * **Benchmarking Environment**: Relies on synthetic OpenSSL benchmarks (`openssl speed`, `s_time`) and emulated network parameters rather than testing on physical, resource-constrained edge or IoT devices[5][17].
+
+---
+
+#### **2\. Battarbee et al. —** **Quantum-Safe Hybrid Key Exchanges with KEM-Based Authentication** (`2411.04030v2.pdf`)
+
+* **Summary &amp; Key Findings**: Introduces **Muckle#**, a novel Hybrid Authenticated Key Exchange (HAKE) protocol designed for large-scale, quantum-safe networks[1]. It extends prior HAKE protocols (Muckle and Muckle+) by **replacing post-quantum digital signatures with post-quantum KEMs for entity authentication** (inspired by KEMTLS) alongside classical KEMs and Quantum Key Distribution (QKD) key material[1].
+  * **Protocol Flow**: Certified long-term PQ KEM encapsulation keys are distributed via certificates[22][23]. Entities encapsulate secrets to partner static keys to establish implicitly authenticated shared keys, followed by explicit Key Confirmation via Message Authentication Code (MAC) exchanges[19].
+  * **Efficiency Gains**: Proves security in the formal HAKE model[19] and demonstrates that KEM-based authentication substantially reduces CPU cycle counts and transmission bandwidth compared to signature-heavy HAKE schemes[1].
+* **Critical Review &amp; Limitations**:
+  * **Sample Size &amp; Experimental Rigor**: The empirical evaluation is limited to a prototype implemented in Python (`liboqs` bindings) tested on a single desktop environment across only 5 test runs[30][31].
+  * **PKI Dependency Gap**: Requires a non-standard Public Key Infrastructure (PKI) capable of certifying long-term KEM encapsulation keys rather than signing keys, creating deployment hurdles in standard web environments[32].
+  * **QKD Modeling**: Models QKD out-of-band as a black-box `GetKey` interface, abstracting away physical quantum key generation rates, distance constraints, and physical-layer side channels[32].
+
+---
+
+#### **3\. Blanco-Romero et al. —** **QKD-KEM: Hybrid QKD Integration into TLS with OpenSSL Providers** (`2503.07196v1.pdf`)
+
+* **Summary &amp; Key Findings**: Proposes a hybrid architecture integrating Quantum Key Distribution (QKD) with Post-Quantum Cryptography (PQC) into TLS 1.3 using OpenSSL 3.0’s provider infrastructure[35].
+  * **Mechanism**: Encapsulates both PQC shared secrets (ML-KEM, BIKE, FrodoKEM, HQC) and QKD key identifiers into a single, unified OpenSSL KEM operation[35].
+  * **Flow Support**: Supports a client-initiated flow (compatible with stateful ETSI GS QKD 004 and stateless ETSI GS QKD 014 APIs) and a server-initiated flow (stateless ETSI 014 only)[35].
+  * **Empirical Results**: Benchmarked on physical ID Quantique Cerberis XGR QKD hardware between Madrid and Vigo[41]. Reveals that REST/HTTPS API calls to QKD Key Management Entities (KMEs) add a fixed \~100 ms overhead during key generation and encapsulation[42].
+* **Critical Review &amp; Limitations**:
+  * **Small Sample Size**: Handshake evaluations were conducted across only 20 iterations per algorithm[44].
+  * **Synchronous Latency Bottleneck**: Key retrieval API calls occur synchronously within the handshake thread, creating a massive 100 ms API latency bottleneck compared to pure PQC handshakes (\~13–18 ms)[42].
+  * **Security Dependency**: Transmits ETSI 014 QKD API calls over classical HTTPS, creating potential circular security dependencies on classical transport security[41].
+
+---
+
+#### **4\. Blanco-Romero et al. —** **Hybrid Quantum Security for IPsec** (`2507.09288v1.pdf` &amp; `2507.09288v1 (1).pdf`)
+
+*(Note: Sources 4 and 5 in the notebook are identical uploads of the same paper).*
+
+* **Summary &amp; Key Findings**: Investigates quantum-resistant IPsec/IKEv2 key exchange by systematically comparing **sequential hybridization** (RFC 9370 using `IKE_INTERMEDIATE` multi-round-trip exchanges) against **parallel hybridization** using a unified QKD-KEM strongSwan plugin[46].
+  * **Performance Superiority**: Parallel hybrid QKD-KEM eliminates the multiplicative 100 ms network latency penalties incurred by sequential `IKE_INTERMEDIATE` round-trips[46].
+  * **MTU &amp; Fragmentation**: Standardized ML-KEM (ML-KEM-512/768) combined with QKD key IDs fits comfortably within standard 1500-byte MTUs without packet fragmentation[52][53], whereas larger PQC algorithms (FrodoKEM, HQC) generate severe fragmentation (up to 15 fragments / 22 KB)[53][54].
+* **Critical Review &amp; Limitations**:
+  * **Layer Focus**: Operates strictly at the Network Layer (IPsec/IKEv2) rather than the Transport Layer (TLS).
+  * **Authentication Vulnerability**: Peer authentication in the evaluation testbed still relies on conventional X.509 certificates (RSA/ECDSA) or classical PKI unless post-quantum signatures (ML-DSA) are explicitly configured, leaving peer authentication vulnerable to quantum attacks during `IKE_AUTH`[55].
+
+---
+
+#### **5\. Gento Suela et al. —** **Post-Quantum DNSSEC CoreDNS Plugin** (`2507.09301v1.pdf`)
+
+* **Summary &amp; Key Findings**: Develops a custom CoreDNS plugin (`dnssec_pqc`) utilizing `liboqs` to evaluate post-quantum digital signature algorithms (ML-DSA, Falcon, SPHINCS+) in Domain Name System Security Extensions (DNSSEC)[56][57]. Evaluates signature generation/verification overhead and packet fragmentation risks over UDP/TCP transport[56].
+* **Critical Review &amp; Limitations**:
+  * **Domain Misalignment**: Focuses strictly on application-layer DNSSEC record signing and resolution[56]. It does not involve Key Encapsulation Mechanisms (KEMs), hybrid key exchanges, or KEM-based session authentication.
+
+---
+
+#### **6\. Aegis Framework —** **Post-Quantum Secure Channels with Zero-Knowledge Proofs** (`2508.19267v1.pdf`)
+
+* **Summary &amp; Key Findings**: Introduces "Aegis", a framework combining Zero-Knowledge Proofs (Halo2 zk-SNARKs) for agent clearance/identity verification with NIST post-quantum primitives (ML-KEM for key exchange and ML-DSA for digital signatures) to construct post-quantum secure communication channels[58][59].
+* **Critical Review &amp; Limitations**:
+  * **Scope &amp; Objectives**: Focuses on zero-knowledge access control circuits rather than hybrid protocol design or KEM-authenticated key exchange. It uses ML-KEM in a standard explicit signature-authenticated setup without hybridizing with QKD or classical primitives.
+
+---
+
+#### **7\. Maduni et al. —** **Hybrid Quantum-Safe Cryptographic Scheme With Secure Key Exchange and Signature Scheme** (`Hybrid_Quantum-Safe_Cryptographic_Scheme...pdf`)
+
+* **Summary &amp; Key Findings**: Proposes a hybrid cryptographic framework for Ethereum blockchain smart contracts[60][61].
+  * **Mechanism**: Uses Kyber1024 (ML-KEM) to establish session keys for AES-CBC data encryption[62][63], combined with a dual-signature scheme (post-quantum Dilithium5/ML-DSA + classical ECDSA) aggregated into a Merkle root for on-chain proof verification[60].
+  * **Gas Optimization**: Reduces gas costs on the EVM by storing compact Merkle roots on-chain while verifying raw signatures off-chain[63].
+* **Critical Review &amp; Limitations**:
+  * **Retained ECDSA Vulnerability**: Relies on classical ECDSA alongside Dilithium5 for EVM compatibility, leaving the on-chain transaction authorization component vulnerable to Shor's algorithm on quantum computers[63][66].
+  * **Explicit Signature Reliance**: Relies on explicit digital signatures (Dilithium5) to authenticate public keys rather than exploring KEM-based authentication mechanisms[67]. Benchmarks are restricted to local Ganache simulated EVM environments[70][71].
+
+---
+
+### **Relevance Assessment: Which Paper is Most Relevant?**
+
+Your notebook is titled **"Quantum-Safe Hybrid Key Exchanges with KEM-Based Authentication"**.
+
+Among all eight uploaded sources, **Paper 2 (** **2411.04030v2.pdf** **by Christopher Battarbee et al.) is unequivocally the most relevant**[1].
+
+**Why it is the most relevant:**
+
+1. **Direct Verbatim Alignment**: Its title is literally **"Quantum-Safe Hybrid Key Exchanges with KEM-Based Authentication"**[1].
+2. **Core Architectural Contribution**: It is the **only paper** in the notebook that directly addresses and solves the challenge of **KEM-based authentication** in a **hybrid** setting (**Muckle#**)[1]. While other sources rely on traditional post-quantum digital signatures (ML-DSA, Falcon, Dilithium)[6] or standard X.509 PKI signatures[72][73] to authenticate key exchanges, Battarbee et al. replace expensive PQ digital signatures with static post-quantum KEM encapsulation keys[1].
+3. **Complete Tri-Hybrid Synthesis**: It formally constructs and cryptographically proves a unified protocol combining all three pillars of hybrid quantum safety: **Classical KEMs**, **Post-Quantum KEMs**, and **Quantum Key Distribution (QKD)**[1].
+4. **Theoretical Foundation**: It provides formal Bellare-Rogaway-style game-based security proofs in the HAKE model, proving that implicit KEM authentication followed by explicit MAC key confirmation yields full session key security[19].
+
+In contrast, the other sources either focus on performance benchmarking frameworks (Montenegro et al.)[2], practical OpenSSL/strongSwan QKD provider plugins (Blanco-Romero et al.)[35][46], DNSSEC signatures (Gento Suela et al.)[56], zero-knowledge proofs (Aegis)[59], or smart-contract proof validation (Maduni et al.)[60].
