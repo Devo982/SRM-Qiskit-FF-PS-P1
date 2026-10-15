@@ -1,0 +1,17 @@
+{
+  "name": "Processor A",
+  "num_qubits": 5,
+  "coupling_edges_undirected": [[0, 1], [1, 2], [2, 3], [3, 4]],
+  "basis_gates": ["rz", "sx", "x", "cx"],
+  "noise": {
+    "one_qubit_depolarizing_probability": 0.001,
+    "cx_depolarizing_probability": 0.005,
+    "readout_error_probability": 0.01
+  },
+  "transpilation": {
+    "optimization_level": 1,
+    "seed_transpiler": 42,
+    "shots": 4096
+  },
+  "design_rationale": "Five-qubit linear-chain baseline with only nearest-neighbour couplings."
+}
