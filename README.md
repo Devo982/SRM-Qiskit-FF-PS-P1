@@ -19,6 +19,8 @@ and every output location.
 (gate verdict), [`results/verification_log.md`](results/verification_log.md) (timestamped
 evidence), [`docs/`](docs/) (protocol spec, implementation plan, benchmark protocol).
 
+**Separate experiment:** [Universal Processor A/B Architecture Benchmark](docs/UNIVERSAL_PROCESSOR_BENCHMARK.md) documents the independent Qiskit topology, routing, and noisy-simulation study.
+
 ---
 
 ## 1. Philosophy of the code
