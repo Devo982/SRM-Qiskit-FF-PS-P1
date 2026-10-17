@@ -167,10 +167,35 @@ bound.
   not embedded hardware.
 - NIST FIPS 203 final (2024-08-13) was consulted; the page notes a potential errata issue to be
   corrected in a future revision. No erratum is claimed resolved by our library version.
-- **Scope mismatch (QFF vs PS-P1):** the QFF Phase 1 Master Guide's universal framework
-  discusses Qiskit quantum Processor A/B metrics; PS-P1's statement asks for classical
-  CPU-standard vs CPU-constrained benchmarking. This report implements the PS-P1-specific
-  interpretation and does not fabricate quantum circuit/coupling metrics.
+- **Scope and separation:** The PS-P1 ECDH + ML-KEM work is a classical cryptographic benchmark. The QFF universal Processor A/B architecture work is a separate quantum-circuit characterization experiment, documented in `docs/UNIVERSAL_PROCESSOR_BENCHMARK.md`. Neither track is represented as an implementation of the other. The evaluation boundary and Processor D Phase 2 rationale are described separately below.
+
+## QFF Phase Evaluation Scope and Processor D Design Rationale
+
+### Phase 1 evaluation boundary
+
+Per the latest clarification from the Team Technical Program Cell, Phase 1 automated evaluation covers Processor A and Processor B only. Processor C and Processor D belong to Phase 2 and are not part of the Phase 1 automated run. Phase 1 and Phase 2 use separate evaluation routes within the same judging website; this repository report documents the submission scope and does not implement or reproduce those evaluation routes.
+
+The evaluation split is **70% automated evaluation and 30% human review of `report.md`**. The automated work follows the prescribed Processor A/B metrics documented in `docs/UNIVERSAL_PROCESSOR_BENCHMARK.md`: logical and transpiled circuit depth; physical-qubit budget; native CX count; explicit routing SWAP diagnostics and the clearly labelled SWAP-equivalent CX-cost proxy; ideal and noisy observable values; absolute observable error; and classical measurement-distribution fidelity. The run uses the recorded transpilation settings, the stated synthetic noise model, and 4096 shots per baseline case. Processor D rationale below is a human-reviewed Phase 2 design concept; it is not an input to the Phase 1 A/B benchmark.
+
+### Processor D design philosophy — Phase 2 concept only
+
+The proposed direction for Processor D is a **connectivity-efficient, workload-aware topology**, rather than simply the processor with the most physical qubits or coupling edges. The design objective is to balance short paths for frequent two-qubit interactions against the overhead and complexity of adding more couplings.
+
+The concept is a connected, modular graph: retain compact local connectivity within small regions and add a carefully selected set of bridge links between regions. Frequently used interactions in the target workload should map onto short physical paths, while less frequent nonlocal interactions remain routable. This approach aims to reduce routing SWAPs and resulting CX/depth overhead without assuming that full connectivity is necessary or optimal.
+
+The proposed design should be evaluated in Phase 2 using a controlled procedure:
+
+1. Define a fixed logical workload and exact ideal reference before choosing the topology.
+2. Select and document the Processor D physical-qubit budget and undirected edge list after the Phase 2 requirements are known; validate graph connectivity and legal edge endpoints.
+3. Use the same native gate basis, transpiler optimization level, recorded seed, declared noise assumptions, and shot count as the comparison baselines unless Phase 2 specifies otherwise.
+4. Measure transpiled depth, native CX count, explicit routing SWAP diagnostics, the labelled CX-overhead proxy, observable error, and measurement-distribution fidelity from saved raw artifacts.
+5. Compare against the supplied baselines and, where practical, run a qubit-budget-matched sensitivity test to better separate connectivity effects from extra placement capacity.
+
+This is an **architectural hypothesis, not a measured result**. The latest Phase 1 clarification does not supply a final Processor D qubit budget, exact topology, or Phase 2 acceptance thresholds. Therefore, this report deliberately does not invent an edge list or numerical performance claims. Processor D is not added to Phase 1 runner inputs, outputs, or evaluation tables.
+
+### Separation of the two technical workstreams
+
+The PS-P1 ECDH + ML-KEM implementation remains a classical cryptographic benchmark measuring local computation and memory behaviour. The Processor A/B Qiskit workload is a separate quantum architecture-characterization experiment. Neither is claimed to implement or benchmark the other, and the Phase 2 Processor D concept does not imply quantum security for the cryptographic protocol.
 
 ## Reproduction
 ```bash
