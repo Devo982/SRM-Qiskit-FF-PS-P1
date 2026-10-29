@@ -128,7 +128,6 @@ class BaseChannel:
         self._kem_sk: object | None = None
         self._m1_frame: bytes | None = None
         self._ss: bytearray | None = None
-        self._prk: bytearray | None = None
         self._fk: bytearray | None = None
 
     # -- introspection -------------------------------------------------------
@@ -147,8 +146,8 @@ class BaseChannel:
         self._wipe_secrets()
 
     def _wipe_secrets(self) -> None:
-        ks.zeroize(self._ss, self._prk, self._fk, self._send_key, self._recv_key)
-        self._ss = self._prk = self._fk = None
+        ks.zeroize(self._ss, self._fk, self._send_key, self._recv_key)
+        self._ss = self._fk = None
         self._send_key = self._recv_key = None
         self._kem_sk = None
         self._m1_frame = None
@@ -304,8 +303,6 @@ class ClientChannel(BaseChannel):
         if len(sig_s) != suite.sig_len:
             raise _len_error("sig_S", suite.sig_len)
 
-        ss = kem_decapsulate(suite, self._kem_sk, kem_ct)
-
         # T2 = M1 exactly as sent || M2 core TLVs rebuilt from received values
         s_core = b"".join([
             encode_tlv(TAG_PROTO_VERSION, values[TAG_PROTO_VERSION]),
@@ -315,14 +312,17 @@ class ClientChannel(BaseChannel):
             encode_tlv(TAG_NONCE_S, values[TAG_NONCE_S]),
         ])
         t2 = self._m1_frame + s_core
+        # Signature verification BEFORE the KEM operation: the trusted key and
+        # the complete signed transcript are both available here, so a failed
+        # verification never touches key derivation or decapsulation.
         sig_verify(suite, vk_s, ks.CTX_SERVER, t2, sig_s)  # AuthenticationFailure on bad
         sig_s_tlv = encode_tlv(TAG_SIG_S, sig_s)
         t3 = t2 + sig_s_tlv
 
         th2 = ks.transcript_hash_2(t3)
+        ss = kem_decapsulate(suite, self._kem_sk, kem_ct)
         self._ss = bytearray(ss)
-        self._prk = bytearray(ks.derive_prk(th2, ss))
-        self._fk = bytearray(ks.finished_key(bytes(self._prk)))
+        self._fk = bytearray(ks.finished_key(th2, ss))
         expected_fin_s = ks.finished_server(bytes(self._fk), th2)
         if not hmac.compare_digest(expected_fin_s, values[TAG_FIN_S]):
             raise AuthenticationFailure("server Finished (fin_S) verification failed")
@@ -336,11 +336,11 @@ class ClientChannel(BaseChannel):
         self._endpoint.send(sig_c_tlv + fin_c_tlv)  # M3
 
         th4 = ks.transcript_hash_4(t3, sig_c_tlv, fin_c_tlv)
-        keys = ks.derive_traffic_keys(bytes(self._prk), th4)
+        keys = ks.derive_traffic_keys(th2, ss, th4)
         self._init_records(keys, send_dir=rec.DIR_C2S, recv_dir=rec.DIR_S2C)
         self.state = STATE_ESTABLISHED
-        ks.zeroize(self._ss, self._prk, self._fk)
-        self._ss = self._prk = self._fk = None
+        ks.zeroize(self._ss, self._fk)
+        self._ss = self._fk = None
 
 
 class ServerChannel(BaseChannel):
@@ -429,8 +429,7 @@ class ServerChannel(BaseChannel):
 
         th2 = ks.transcript_hash_2(t3)
         self._ss = bytearray(ss)
-        self._prk = bytearray(ks.derive_prk(th2, ss))
-        self._fk = bytearray(ks.finished_key(bytes(self._prk)))
+        self._fk = bytearray(ks.finished_key(th2, ss))
         fin_s = ks.finished_server(bytes(self._fk), th2)
 
         self._t2 = t2
@@ -466,11 +465,12 @@ class ServerChannel(BaseChannel):
         fin_c_tlv = encode_tlv(TAG_FIN_C, values[TAG_FIN_C])
 
         th4 = ks.transcript_hash_4(t3, sig_c_tlv, fin_c_tlv)
-        keys = ks.derive_traffic_keys(bytes(self._prk), th4)  # type: ignore[arg-type]
+        th2 = ks.transcript_hash_2(t3)  # salt for the traffic-key HKDF (see keyschedule)
+        keys = ks.derive_traffic_keys(th2, bytes(self._ss), th4)  # type: ignore[arg-type]
         self._init_records(keys, send_dir=rec.DIR_S2C, recv_dir=rec.DIR_C2S)
         self.state = STATE_ESTABLISHED
         self._t2 = None
         self._sig_s_tlv = None
-        ks.zeroize(self._ss, self._prk, self._fk)
-        self._ss = self._prk = self._fk = None
+        ks.zeroize(self._ss, self._fk)
+        self._ss = self._fk = None
 

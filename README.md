@@ -46,6 +46,7 @@ protocol/                    TLV wire format, suites, key schedule, record layer
 cli/                         UX façade (docs/INTEGRATION_CONTRACT.md) + demo
 tests/harness.py             wire-level fault injectors (flip/duplicate/substitute/splice)
 tests/run_security_tests.py  T1–T9 battery -> results/security_tests.csv
+tests/test_regressions.py    RFC 5869 vectors + replay-window regression tests
 bench/                       handshake + payload benchmarks -> results/tables/*.csv
 scripts/provision_identities.py   generates identities/ (git-ignored) + trust_store.json
 docs/INTEGRATION_CONTRACT.md security invariants for the UX layer
@@ -67,6 +68,7 @@ pip install -r requirements.txt
 python common/env_check.py                # -> READY - environment is correct.
 python scripts/provision_identities.py    # identities/ + trust_store.json (one command)
 python -m tests.run_security_tests        # T1-T9, single command
+python -m tests.test_regressions          # RFC 5869 vectors + replay-window regression
 python -m cli.demo --suite QFF26-PQC-1    # end-to-end demo (metadata-only output)
 python bench/bench_handshake.py --runs 15 # median / IQR / p95 per suite
 python bench/bench_payload.py             # 1KB / 100KB / 10MB throughput

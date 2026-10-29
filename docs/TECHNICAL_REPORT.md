@@ -158,11 +158,11 @@ Client                                         Server
   strict parse; policy on version+echoed suite
   trust lookup (id_S, role=server)
   length checks vs suite parameters
-  ss = decapsulate(kem_sk_C, kem_ct)
   T2 = M1(as sent) || M2-core(rebuilt)
   verify sig_S over T2                         fin_S = HMAC(fk, FIN_S_LABEL || TH2)
   T3 = T2 || TLV(09,sig_S); TH2 = H(TH2_LABEL || T3)
-  PRK = HKDF-Extract(salt=TH2, ikm=ss)
+  ss = decapsulate(kem_sk_C, kem_ct)
+  fk = HKDF(salt=TH2, ikm=ss, info="QFF26-P1 fin", 32)
   verify fin_S (constant time)
   sig_C = Sign_C(CTX_CLIENT, T3)
   TH3 = H(TH3_LABEL || T3 || TLV(0A,sig_C))
@@ -172,7 +172,7 @@ Client                                         Server
                                                verify sig_C over T3
                                                verify fin_C
                                                TH4 = H(TH4_LABEL || T3 || TLV(0A,sig_C) || TLV(0C,fin_C))
-                                               traffic keys = Expand(PRK, label || TH4)
+                                               traffic keys = HKDF(salt=TH2, ikm=ss, info=label || TH4)
   ESTABLISHED                                  ESTABLISHED
 ```
 
@@ -189,6 +189,18 @@ Key properties:
    `policy → trust-store lookup → signature → Finished`. The trust store is the
    only source of verification keys — there is no code path that consumes a
    verification key from the wire, so an attacker cannot substitute one (T6).
+   On the client, the server's signature is verified **before** the ML-KEM
+   decapsulation: the trusted key and the complete signed transcript are both
+   available at that point, so a failed verification never touches key
+   derivation. The server necessarily encapsulates before the client is
+   authenticated (M2 must precede M3); its acceptance of cryptographic state
+   is still gated on the full chain at M3. Neither endpoint reaches
+   `ESTABLISHED` before `policy → lookup → signature → Finished` has succeeded
+   end to end, and any verification failure wipes all transient secrets
+   before the state becomes `FAILED` (verified line-by-line against
+   `protocol/channels.py`: client `proto_version → suite policy → trust lookup →
+   length checks → sig_S → decapsulate → fin_S → ESTABLISHED`; server M3:
+   `trust lookup → sig_C → fin_C → ESTABLISHED`).
 4. **The server re-checks the trust store at M3**, so a client identity revoked
    mid-handshake cannot complete (design v2 §4).
 5. **Freshness cache, honestly scoped.** The server keeps an LRU cache
@@ -199,8 +211,17 @@ Key properties:
 
 ### 3.5 Key schedule
 
-HKDF-SHA256 (RFC 5869) is implemented explicitly so every derivation step is
-auditable against this document. The derivation order is fixed and acyclic:
+All key derivation uses the vetted `cryptography` HKDF (RFC 5869) and HMAC
+primitives — there is no hand-rolled crypto anywhere in the schedule, and the
+labels below are the only design-specific input. `PRK =
+HKDF-Extract(salt = TH2, IKM = ss)` is performed inside the library's HKDF and
+never materialized: every expansion is expressed as
+`HKDF(salt = TH2, ikm = ss, info = <label> ‖ <context>, len)`, which is
+byte-identical to Extract followed by Expand with the same salt/IKM/info.
+Correctness and output compatibility are pinned by `tests/test_regressions.py`:
+RFC 5869 Appendix A test vectors (A.1, A.3) plus an independent-oracle
+cross-check over every QFF26 label (100 randomized trials). The derivation
+order is fixed and acyclic:
 
 ```
 ss -> sig_S -> TH2 -> PRK -> fk -> fin_S -> sig_C -> TH3 -> fin_C -> TH4
@@ -210,19 +231,19 @@ ss -> sig_S -> TH2 -> PRK -> fk -> fin_S -> sig_C -> TH3 -> fin_C -> TH4
 | Value | Derivation |
 |---|---|
 | `TH2` | `SHA-256("QFF26-P1-TH2" ‖ T3)` |
-| `PRK` | `HKDF-Extract(salt = TH2, IKM = ss)` |
-| `fk` | `HKDF-Expand(PRK, "QFF26-P1 fin", 32)` |
+| `PRK` | `HKDF-Extract(salt = TH2, IKM = ss)` (inside the library; not materialized) |
+| `fk` | `HKDF(salt = TH2, ikm = ss, info = "QFF26-P1 fin", 32)` |
 | `fin_S` | `HMAC-SHA256(fk, "QFF26-P1 fin-S" ‖ TH2)` |
 | `fin_C` | `HMAC-SHA256(fk, "QFF26-P1 fin-C" ‖ TH3)` |
-| `c2s_key` | `HKDF-Expand(PRK, "QFF26-P1 c2s" ‖ TH4, 32)` |
-| `s2c_key` | `HKDF-Expand(PRK, "QFF26-P1 s2c" ‖ TH4, 32)` |
-| `nb_c2s` / `nb_s2c` | `HKDF-Expand(PRK, "QFF26-P1 nb c2s"/"QFF26-P1 nb s2c" ‖ TH4, 12)` |
-| `exporter` | `HKDF-Expand(PRK, "QFF26-P1 export" ‖ TH4, 32)` |
+| `c2s_key` | `HKDF(salt = TH2, ikm = ss, info = "QFF26-P1 c2s" ‖ TH4, 32)` |
+| `s2c_key` | `HKDF(salt = TH2, ikm = ss, info = "QFF26-P1 s2c" ‖ TH4, 32)` |
+| `nb_c2s` / `nb_s2c` | `HKDF(salt = TH2, ikm = ss, info = "QFF26-P1 nb c2s"/"QFF26-P1 nb s2c" ‖ TH4, 12)` |
+| `exporter` | `HKDF(salt = TH2, ikm = ss, info = "QFF26-P1 export" ‖ TH4, 32)` |
 
 The kit quickstart labels (`QFF26 c2s` / `QFF26 s2c`) are preserved and
 strengthened with `TH4` transcript binding: the traffic keys do not exist until
 both Finished values have been committed to the transcript. Transient secrets
-(`ss`, `PRK`, `fk`, KEM private key) are wiped from the channel object on
+(`ss`, `fk`, KEM private key) are wiped from the channel object on
 `ESTABLISHED` and on every terminal state (best-effort; see Section 7).
 
 ### 3.6 Record layer
@@ -240,14 +261,18 @@ version u16 (0x0001) | type u8 (0x01 app-data, 0x02 close)
   payload; no chunking in scope (Section 7).
 - Receiver pipeline order is fixed: length/`ct_len` consistency → record version
   → direction byte (`TranscriptBindingError` on mismatch) → **sliding replay
-  window (before any decryption)** → AES-256-GCM open (`InvalidTag` →
-  `RecordAuthenticationError`).
-- **Replay window:** per-direction watermark + 64-bit bitmap. `seq < watermark`
-  or a duplicate inside the window → `RecordReplayDetected` *before* GCM runs;
-  a forward gap ≥ 64 advances the watermark (older sequence numbers become
-  undeliverable). GCM authenticates integrity, not freshness — the window is the
-  replay defense, and T8a verifies it (first copy delivered, byte-identical
-  second copy rejected).
+  window eligibility check (read-only, before any decryption)** → AES-256-GCM
+  open (`InvalidTag` → `RecordAuthenticationError`) → **window state commit
+  (only after successful authentication)**.
+- **Replay window:** per-direction watermark + 64-bit bitmap, split into a
+  read-only `check(seq)` and a `commit(seq)` that mutates state only after GCM
+  authentication succeeds. `seq < watermark` or a duplicate inside the window →
+  `RecordReplayDetected` *before* GCM runs; a forward gap ≥ 64 advances the
+  watermark **at commit time**, so a forged record with an invalid tag can
+  never consume sequence numbers or advance the window (regression-tested in
+  `tests/test_regressions.py`). GCM authenticates integrity, not freshness —
+  the window is the replay defense, and T8a verifies it (first copy delivered,
+  byte-identical second copy rejected).
 - **Session caps:** sender-side cap `max_records` (default 2^40, configurable) and
   hard sequence cap 2^63; exceeding raises `SessionExhausted`. Renegotiation is a
   fresh handshake (documented, not automated — Section 7).
@@ -296,7 +321,11 @@ and can flip a byte, duplicate, substitute, or splice frames. Assertions use
 public confirmation status only: channel state, `failure_category`, delivery
 flags, and payload equality — never key bytes. The matrix is 25 checks per
 suite × 2 suites = 50 checks, and results are written to
-`results/security_tests.csv`.
+`results/security_tests.csv`. Beyond the battery, `tests/test_regressions.py`
+pins the key schedule to the RFC 5869 Appendix A test vectors and an
+independent oracle, and regression-tests the replay window's
+commit-after-authentication rule (a forged far-ahead-sequence record must not
+mutate window state).
 
 ### 5.2 Results (both suites pass identically — 50/50)
 
@@ -467,6 +496,7 @@ pip install -r requirements.txt
 python common/env_check.py              # -> READY - environment is correct.
 python scripts/provision_identities.py  # identities/ (git-ignored) + trust_store.json
 python -m tests.run_security_tests      # -> ALL TESTS PASSED: 50/50 checks
+python -m tests.test_regressions        # RFC 5869 vectors + replay-window regression
 python -m cli.demo --suite QFF26-PQC-1  # metadata-only end-to-end demo
 python bench/bench_handshake.py --runs 15
 python bench/bench_payload.py

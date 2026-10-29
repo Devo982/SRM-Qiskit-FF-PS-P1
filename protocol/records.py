@@ -12,6 +12,11 @@ Honesty note (design v2 section 5): byte-identical replay of a GCM record
 authenticates fine - GCM protects integrity, not freshness. The receiver
 window/watermark state below is the replay defense, checked BEFORE any
 decryption attempt.
+
+State-mutation rule: replay eligibility is a READ-ONLY check performed before
+decryption; the window state is committed ONLY after AES-GCM authentication
+succeeds. Unauthenticated input can therefore never consume sequence space or
+advance the watermark (regression-tested in tests/test_regressions.py).
 """
 from __future__ import annotations
 
@@ -62,8 +67,14 @@ class ReplayWindow:
         self.watermark = 0
         self.bitmap = 0
 
-    def check_and_update(self, seq: int) -> None:
-        """Reject stale/duplicate BEFORE decryption; update state on accept."""
+    def check(self, seq: int) -> None:
+        """READ-ONLY replay-eligibility check; never mutates state.
+
+        Raises before decryption: SessionExhausted at the hard cap,
+        RecordReplayDetected for stale (seq < watermark) or duplicate
+        (seq already marked inside the 64-bit window) sequence numbers.
+        Call commit(seq) only AFTER the record authenticates.
+        """
         if seq >= SEQ_HARD_CAP:
             raise SessionExhausted("sequence reached hard cap 2^63")
         if seq < self.watermark:
@@ -71,6 +82,16 @@ class ReplayWindow:
         delta = seq - self.watermark
         if delta < 64 and (self.bitmap >> delta) & 1:
             raise RecordReplayDetected(f"duplicate seq {seq} in window")
+
+    def commit(self, seq: int) -> None:
+        """Commit window state for an AUTHENTICATED record (post-GCM-success).
+
+        Precondition: check(seq) passed and no state change happened since
+        (single-threaded receiver pipeline guarantees this). Large forward
+        gaps (>= 64) advance the watermark here, so a forged record can
+        never trigger the advance.
+        """
+        delta = seq - self.watermark
         if delta >= 64:
             # Large forward gap: advance watermark, discard older seqs.
             self.watermark = seq - 63
@@ -105,12 +126,14 @@ def open_record(
     expected_dir: int,
     frame: bytes,
 ) -> tuple[int, int, bytes]:
-    """Window check (before decryption) -> decrypt/authenticate.
+    """Window check (read-only, before decryption) -> decrypt -> commit.
 
     Returns (seq, record_type, plaintext). Raises RecordReplayDetected for
     stale/duplicate seq before touching AES-GCM; RecordAuthenticationError on
     any InvalidTag / length mismatch; TranscriptBindingError on direction
-    mismatch; SessionExhausted at caps.
+    mismatch; SessionExhausted at caps. The window state is committed only
+    after successful authentication, so forged records cannot advance the
+    replay window or consume sequence numbers.
     """
     if len(frame) < HEADER_LEN + TAG_LEN:
         raise RecordAuthenticationError("record shorter than header+tag")
@@ -124,11 +147,12 @@ def open_record(
         )
     if len(frame) - HEADER_LEN != ct_len:
         raise RecordAuthenticationError("ct_len field does not match frame size")
-    window.check_and_update(seq)  # replay defense BEFORE any decryption
+    window.check(seq)  # read-only replay defense BEFORE any decryption
     nonce = nonce_for(nb, seq)
     try:
         plaintext = AESGCM(key).decrypt(nonce, frame[HEADER_LEN:], header)
     except InvalidTag as exc:
         raise RecordAuthenticationError("GCM authentication failed (InvalidTag)") from exc
+    window.commit(seq)  # state mutation only AFTER successful authentication
     return seq, rtype, plaintext
 
