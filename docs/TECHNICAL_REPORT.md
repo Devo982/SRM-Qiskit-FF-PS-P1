@@ -26,12 +26,16 @@ policy, trust-store, signature, and key-confirmation path. The battery asserts
 via public confirmation status only (states, failure categories, payload sizes);
 key material never appears in logs or assertions.
 
-On the platform of record the full handshake completes in 3.68 ms median for the
-PQC suite (15 runs) and 0.73 ms median for the classical baseline, and bulk
-throughput converges to ~470–485 MB/s for both suites at the 10 MB payload,
-showing that post-handshake cost is dominated by the AES-256-GCM record layer,
-not by the KEM. This is a competition prototype: Section 7 states the assumptions
-and limitations explicitly.
+In the 29 October 2026 Platform A run, the full handshake median was 3.173 ms
+for QFF26-PQC-1 and 0.766 ms for QFF26-CLASSICAL-1, from 100 successful
+handshakes per suite. The measured serialized handshake totals were 9,134 B
+and 448 B, respectively. In the separate payload benchmark, 10 MB end-to-end
+throughput was 508.47/503.05 MiB/s (client-to-server/server-to-client) for PQC
+and 565.79/572.45 MiB/s for the classical baseline. Payload measurements also
+record per-call encryption/decryption timings and a 32 B transmitted record
+overhead. All measurements are local and in-process, not network results. This
+is a competition prototype: Section 7 states the assumptions and limitations
+explicitly.
 
 ## 2. Deliverable-to-requirement map
 
@@ -39,13 +43,13 @@ and limitations explicitly.
 |---|---|
 | Authenticated key exchange with PQ KEM + PQ signatures | Suite `QFF26-PQC-1`, `protocol/channels.py` |
 | Classical baseline for comparison | Suite `QFF26-CLASSICAL-1` |
-| HKDF-SHA256, direction-separated, explicit | `protocol/keyschedule.py` (RFC 5869 implemented step-by-step) |
+| HKDF-SHA256, direction-separated, explicit | `protocol/keyschedule.py` (vetted `cryptography` HKDF API; RFC 5869 vectors and independent-oracle regression checks) |
 | AES-256-GCM record layer with replay defense | `protocol/records.py` |
-| T1–T9 automated security tests → CSV | `tests/run_security_tests.py` → `results/security_tests.csv` |
+| T1–T9 automated security tests → organizer summary + detailed evidence | `tests/run_security_tests.py` → `results/security_tests.csv` (nine-row organizer summary) and `results/security_tests_detailed.csv` (50 individual checks) |
 | 3 official payloads (1 KB / 100 KB / 10 MB) with SHA-256 | `data/payloads/payload_sha256.txt` (manifest committed; `*.bin` regenerated locally) |
-| Benchmarks, ≥10 handshakes, median/IQR/p95 | `bench/bench_handshake.py`, `bench/bench_payload.py` → `results/tables/*.csv` |
+| Benchmarks, ≥10 successful handshakes, median/IQR/p95, measured message sizes, payload timings/overhead | `bench/bench_handshake.py`, `bench/bench_payload.py` → `results/tables/handshake_results.csv`, `bench_handshake.csv`, `payload_results.csv`, `bench_payload.csv` |
 | UX layer with zero key contact | `cli/adapter.py` + invariants I1–I5 in `docs/INTEGRATION_CONTRACT.md` |
-| Reproducible judge path | `README.md` quickstart (clean clone → 4 commands → 50/50) |
+| Reproducible judge path | README setup and quickstart; security battery (50/50) and regression commands |
 
 ## 3. Protocol design (v2)
 
@@ -130,16 +134,23 @@ Message schemas (fixed order):
 - **M2** (server → client): `proto_version, suite_id, id_S, kem_ct, nonce_S, sig_S, fin_S`
 - **M3** (client → server): `sig_C, fin_C`
 
-Handshake wire cost, computed from the constants above (identity strings
-`client:alice` / `server:bob`, 5 B TLV overhead per field):
+Serialized handshake sizes were measured from the actual M1, M2 and M3
+frames captured in `InMemoryWire.log` during 100 successful handshakes per
+suite. The lengths below were stable across all measured runs; these are
+observed serialized frame sizes, not estimates computed from cryptographic
+parameter constants.
 
 | Suite | M1 | M2 | M3 | Total |
 |---|---|---|---|---|
 | `QFF26-PQC-1` | 1265 B | 4518 B | 3351 B | 9134 B |
 | `QFF26-CLASSICAL-1` | 119 B | 223 B | 106 B | 448 B |
 
-The ~20× wire-cost ratio is the expected price of post-quantum parameters at
-NIST level 1–2 (ML-KEM-768 ct 1088 B, ML-DSA-65 sig 3309 B).
+The measured serialized handshake-size ratio is about 20.4×
+(9,134 B versus 448 B). Both ML-KEM-768 and ML-DSA-65 are NIST security
+category 3 parameter sets (FIPS 203 and FIPS 204). The byte ratio describes
+message sizes, not a ratio of cryptographic security strength.
+References: https://csrc.nist.gov/pubs/fips/203/final and
+https://csrc.nist.gov/pubs/fips/204/final.
 
 ### 3.4 Handshake flow and transcript binding
 
@@ -319,9 +330,9 @@ keys, and a rogue endpoint with its own (valid) keypair.
 index (c2s #0 = M1, #1 = M3, #2+ = app records; s2c #0 = M2, #1+ = app records)
 and can flip a byte, duplicate, substitute, or splice frames. Assertions use
 public confirmation status only: channel state, `failure_category`, delivery
-flags, and payload equality — never key bytes. The matrix is 25 checks per
-suite × 2 suites = 50 checks, and results are written to
-`results/security_tests.csv`. Beyond the battery, `tests/test_regressions.py`
+flags, and payload equality — never key bytes. The matrix comprises 25 checks per suite × 2 suites = 50 detailed checks. The
+nine-row organizer-format summary is written to `results/security_tests.csv`; the
+individual checks are retained in `results/security_tests_detailed.csv`. Beyond the battery, `tests/test_regressions.py`
 pins the key schedule to the RFC 5869 Appendix A test vectors and an
 independent oracle, and regression-tests the replay window's
 commit-after-authentication rule (a forged far-ahead-sequence record must not
@@ -371,74 +382,108 @@ mutate window state).
 
 ### 6.1 Methodology
 
-- **Handshake latency** (`bench/bench_handshake.py --runs 15`): 15 full handshakes
-  per suite on the in-process wire; every run uses fresh channels *and a fresh
-  KEM keypair* (protocol-accurate); ephemeral signing keys and a matching
-  ephemeral trust store are generated per invocation. Reported: median, IQR
-  (Q75−Q25), p95 (linear-interpolated), min, max. No warm-up run is discarded —
-  the tail therefore includes one-time library initialization (Section 6.4).
-- **Payload throughput** (`bench/bench_payload.py`, repeats = 5): after a real
-  handshake, each official payload (1 KB / 100 KB / 10 MB) is transferred 5 times
-  per direction; each transfer is timed end-to-end (send → deliver → recv) and
-  byte-compared. Reported: median MB/s per direction.
+- **Handshake latency** (`bench/bench_handshake.py --runs 100`): 100 attempts
+  per suite using fresh channel objects for every attempt. Suite signing keys and
+  the matching ephemeral trust store are created once per benchmark invocation;
+  the handshake protocol performs the KEM exchange for each session. Timing
+  covers the full `run_handshake` call over the synchronous in-process wire.
+  The script records median, IQR (Q75−Q25), linearly interpolated p95, minimum,
+  maximum, successes and failures. No warm-up trial is discarded.
+- **Handshake byte counts** are measured from the actual delivered frames in
+  `InMemoryWire.log`: c2s frame 0 is M1, s2c frame 0 is M2, and c2s frame 1 is
+  M3. Directional and total counts are sums of these captured frame lengths.
+- **Payload measurements** (`bench/bench_payload.py --repeats 15`) use the three
+  official SHAKE-256 payloads. For each payload and suite, the script performs
+  a crypto-timing pass with 15 transfers in each direction, giving 30 samples
+  for encryption and 30 for decryption, then a separate end-to-end throughput
+  pass with the original record functions restored. Every received payload is
+  compared byte-for-byte and checked against its official SHA-256 digest.
+- **Units and scope:** throughput is MiB/s (bytes divided by 1024²). All results
+  are local/in-process measurements; no socket or real-network latency is
+  measured. Timing includes Python-level call and serialization work in the
+  stated measurement path, not just native AES-GCM instructions.
 
-Both measure crypto + serialization cost on one machine; the in-process wire
-carries exactly the frames a socket transport would carry, excluding socket and
-OS scheduling effects.
+### 6.2 Handshake latency and serialized sizes (100 attempts per suite)
 
-### 6.2 Handshake latency (15 runs per suite)
+| Suite | Trials | Success / failure | Median | IQR | p95 | Min | Max | c2s bytes | s2c bytes | Total bytes |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `QFF26-PQC-1` | 100 | 100 / 0 | 3.173 ms | 1.157 ms | 5.279 ms | 1.941 ms | 11.943 ms | 4616 | 4518 | 9134 |
+| `QFF26-CLASSICAL-1` | 100 | 100 / 0 | 0.766 ms | 0.080 ms | 0.998 ms | 0.733 ms | 2.222 ms | 225 | 223 | 448 |
 
-| Suite | median | IQR | p95 | min | max |
-|---|---|---|---|---|---|
-| `QFF26-PQC-1` | 3.68 ms | 3.49 ms | 34.63 ms | 1.85 ms | 66.09 ms |
-| `QFF26-CLASSICAL-1` | 0.73 ms | 0.01 ms | 1.23 ms | 0.72 ms | 2.25 ms |
+Measured individual frame lengths:
 
-Raw data: `results/tables/bench_handshake.csv`.
+| Suite | M1, client → server | M2, server → client | M3, client → server | Check: sum |
+|---|---:|---:|---:|---:|
+| `QFF26-PQC-1` | 1265 B | 4518 B | 3351 B | 9134 B |
+| `QFF26-CLASSICAL-1` | 119 B | 223 B | 106 B | 448 B |
 
-### 6.3 Payload throughput (median of 5, MB/s)
+The directional totals are M1 + M3 for client-to-server and M2 for
+server-to-client. Raw evidence: `results/tables/handshake_results.csv` (organizer
+columns) and `results/tables/bench_handshake.csv` (includes the M1/M2/M3 breakdown
+and min/max). The recorded run ID is in both files.
 
-| Suite | Payload | Bytes | c2s | s2c |
-|---|---|---|---|---|
-| `QFF26-PQC-1` | 1 KB | 1024 | 32.1 | 40.2 |
-| `QFF26-PQC-1` | 100 KB | 102400 | 649.0 | 659.0 |
-| `QFF26-PQC-1` | 10 MB | 10485760 | 469.5 | 476.6 |
-| `QFF26-CLASSICAL-1` | 1 KB | 1024 | 41.1 | 45.1 |
-| `QFF26-CLASSICAL-1` | 100 KB | 102400 | 570.2 | 663.6 |
-| `QFF26-CLASSICAL-1` | 10 MB | 10485760 | 484.7 | 482.2 |
+### 6.3 Payload encryption/decryption and record overhead
 
-Raw data: `results/tables/bench_payload.csv`.
+The `trials` field in `payload_results.csv` is 30 samples per operation: 15
+client-to-server and 15 server-to-client. `ciphertext_bytes` in these results is
+the full captured serialized record frame (header + encrypted payload + GCM tag);
+`overhead_bytes` is serialized frame length minus plaintext length.
 
-### 6.4 Reading the numbers
+| Suite | Payload | Plaintext bytes | Serialized `ciphertext_bytes` | Transmitted overhead | Trials per operation | Median encrypt | Median decrypt | SHA-256 |
+|---|---|---:|---:|---:|---:|---:|---:|---|
+| PQC | 1 KB | 1024 | 1056 | 32 B | 30 | 0.009304 ms | 0.010462 ms | Match |
+| PQC | 100 KB | 102400 | 102432 | 32 B | 30 | 0.043192 ms | 0.102341 ms | Match |
+| PQC | 10 MB | 10485760 | 10485792 | 32 B | 30 | 7.871472 ms | 12.841740 ms | Match |
+| Classical | 1 KB | 1024 | 1056 | 32 B | 30 | 0.009408 ms | 0.010606 ms | Match |
+| Classical | 100 KB | 102400 | 102432 | 32 B | 30 | 0.048433 ms | 0.107047 ms | Match |
+| Classical | 10 MB | 10485760 | 10485792 | 32 B | 30 | 6.513818 ms | 10.451901 ms | Match |
 
-**The handshake gap is ~5× at the median and entirely attributable to PQ
-primitives.** ML-KEM-768 keypair generation + encapsulation/decapsulation and an
-ML-DSA-65 sign + verify per side cost ~3 ms combined on this platform, versus
-~0.7 ms for X25519 + Ed25519. At 9134 B vs 448 B of wire (Section 3.3), the PQC
-handshake is also ~20× heavier on the network — both numbers are the expected
-NIST level-1–2 overhead and are comfortably practical for a session-based
-channel.
+**Overhead accounting:** the protocol components are a 12 B derived nonce,
+a 16 B header and a 16 B GCM tag: 44 B combined component accounting. The nonce
+is derived from the nonce base and sequence number and is not transmitted.
+Therefore the actual serialized frame overhead is 32 B (16 B header + 16 B
+tag). The organizer-format `overhead_bytes` field records measured transmitted
+overhead (serialized frame length minus plaintext length); the 12 B derived
+nonce is reported separately and is not counted as an on-wire byte.
 
-**The p95/max tail is cold-start, not steady state.** With n = 15 and no warm-up
-discard, the linear-interpolated p95 lands essentially at the second-largest
-sample. The PQC suite's max (66 ms) is dominated by the first run's one-time
-costs (lazy module initialization, first ML-KEM/ML-DSA operations through the
-native bindings). The honest robust numbers are the median and IQR; p95 is
-reported for kit compliance and interpreted here rather than hidden.
+Raw data in the organizer's column layout: `results/tables/payload_results.csv`.
 
-**Bulk throughput is suite-independent — the record layer is the bottleneck.**
-At 100 KB and 10 MB both suites sit within a few percent of each other
-(~470–664 MB/s), because post-handshake cost is AES-256-GCM through the
-`cryptography` OpenSSL backend plus Python-level per-call overhead; the KEM
-choice is irrelevant once keys are established. This is the intended takeaway
-for PS-P1: quantum safety costs at connection setup, not in the data path.
+### 6.4 End-to-end payload throughput (median of 15 transfers per direction, MiB/s)
 
-**Small payloads expose per-record fixed cost; the 10 MB dip is memory
-hierarchy.** At 1 KB, throughput drops to 32–45 MB/s (≈ 30–45k records/s) since
-the 32 B per-record overhead and fixed Python/AESGCM call cost dominate. The
-mild dip from 100 KB (570–664 MB/s) to 10 MB (470–485 MB/s) is consistent with
-the payload buffer exceeding CPU caches — memory bandwidth and buffer copies,
-not crypto, explain the difference. No chunking exists in scope (one record per
-payload), which is why per-record costs matter for small messages.
+| Suite | Payload | Plaintext bytes | c2s MiB/s | s2c MiB/s |
+|---|---|---:|---:|---:|
+| `QFF26-PQC-1` | 1 KB | 1024 | 40.23 | 41.67 |
+| `QFF26-PQC-1` | 100 KB | 102400 | 692.58 | 692.19 |
+| `QFF26-PQC-1` | 10 MB | 10485760 | 508.47 | 503.05 |
+| `QFF26-CLASSICAL-1` | 1 KB | 1024 | 35.69 | 40.49 |
+| `QFF26-CLASSICAL-1` | 100 KB | 102400 | 649.80 | 669.44 |
+| `QFF26-CLASSICAL-1` | 10 MB | 10485760 | 565.79 | 572.45 |
+
+These throughput measurements use the uninstrumented end-to-end
+`send → wire delivery → recv` path; the per-call timing wrappers are not active
+during this pass. Raw data: `results/tables/bench_payload.csv` (column names
+explicitly use MiB/s).
+
+### 6.5 Interpretation and limitations
+
+- **Handshake cost and size:** in this run the PQC median handshake was about
+  4.14 times the classical baseline (3.173 ms versus 0.766 ms). The measured
+  handshake was about 20.4 times larger (9134 B versus 448 B). These are observed
+  results for this implementation and platform, not universal performance
+  guarantees.
+- **Post-handshake record path:** both suites use the same AES-256-GCM record
+  layer. The 10 MB throughput values were 508.47/503.05 MiB/s for PQC and
+  565.79/572.45 MiB/s for the classical suite in this run. These single-machine
+  figures are of the same order of magnitude, but they do not justify claiming
+  identical throughput or attributing every difference to the suite alone.
+- **Small records:** the 32 B transmitted overhead is 3.125% of a 1 KB plaintext
+  record, about 0.0313% of 100 KB and about 0.0003% of 10 MB. For a single-record
+  payload, fixed per-call work and framing are proportionally more visible for
+  small payloads. The implementation does not chunk or fragment a payload.
+- **Timing interpretation:** no warm-up handshake is discarded, and all runs
+  are local/in-process on one Intel Mac. Results can vary with process load,
+  library initialization, buffer copies and runtime effects. They should not be
+  presented as network latency or as an independent cryptographic audit.
 
 ## 7. Prototype status and assumptions
 
@@ -498,14 +543,16 @@ python scripts/provision_identities.py  # identities/ (git-ignored) + trust_stor
 python -m tests.run_security_tests      # -> ALL TESTS PASSED: 50/50 checks
 python -m tests.test_regressions        # RFC 5869 vectors + replay-window regression
 python -m cli.demo --suite QFF26-PQC-1  # metadata-only end-to-end demo
-python bench/bench_handshake.py --runs 15
-python bench/bench_payload.py
+python bench/bench_handshake.py --runs 100
+python bench/bench_payload.py --repeats 15
 ```
 
 Expected artifacts after reproduction: `results/security_tests.csv`,
-`results/tables/bench_handshake.csv`, `results/tables/bench_payload.csv`,
-`data/payloads/payload_*.bin` + `payload_sha256.txt` (regenerated; the `.bin`
-files are git-ignored), and `platform_A_info.json`.
+`results/security_tests_detailed.csv`,
+`results/tables/handshake_results.csv`, `results/tables/bench_handshake.csv`,
+`results/tables/payload_results.csv`, `results/tables/bench_payload.csv`,
+`data/payloads/payload_*.bin` and `payload_sha256.txt` (payload binaries are
+generated locally and git-ignored), and `platform_A_info.json`.
 
 > **Intel macOS note.** `cryptography==50.0.2` publishes no macOS x86_64 wheel;
 > on Intel Macs pip builds it from sdist against a local static OpenSSL —
@@ -520,7 +567,8 @@ files are git-ignored), and `platform_A_info.json`.
 `common/`), `docs/INTEGRATION_CONTRACT.md`, this report, `README.md`,
 `requirements.txt` (kit pin `cryptography==50.0.2`), `trust_store.json` (public
 keys only), `data/payloads/payload_sha256.txt`, `results/security_tests.csv`,
-`results/tables/*.csv`, `platform_A_info.json`.
+`results/security_tests_detailed.csv`, `results/tables/*.csv`,
+`platform_A_info.json`.
 
 **Never committed:** `identities/*.json` (private keys/seeds — enforced by
 `.gitignore` + `git check-ignore` at provisioning time), `data/payloads/*.bin`

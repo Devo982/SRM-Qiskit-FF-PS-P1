@@ -45,7 +45,7 @@ protocol/                    TLV wire format, suites, key schedule, record layer
                              Client/Server state machines, in-memory wire
 cli/                         UX façade (docs/INTEGRATION_CONTRACT.md) + demo
 tests/harness.py             wire-level fault injectors (flip/duplicate/substitute/splice)
-tests/run_security_tests.py  T1–T9 battery -> results/security_tests.csv
+tests/run_security_tests.py  T1–T9 battery -> results/security_tests.csv (organizer summary) + results/security_tests_detailed.csv (50 detailed checks)
 tests/test_regressions.py    RFC 5869 vectors + replay-window regression tests
 bench/                       handshake + payload benchmarks -> results/tables/*.csv
 scripts/provision_identities.py   generates identities/ (git-ignored) + trust_store.json
@@ -70,12 +70,13 @@ python scripts/provision_identities.py    # identities/ + trust_store.json (one 
 python -m tests.run_security_tests        # T1-T9, single command
 python -m tests.test_regressions          # RFC 5869 vectors + replay-window regression
 python -m cli.demo --suite QFF26-PQC-1    # end-to-end demo (metadata-only output)
-python bench/bench_handshake.py --runs 15 # median / IQR / p95 per suite
-python bench/bench_payload.py             # 1KB / 100KB / 10MB throughput
+python bench/bench_handshake.py --runs 100 # median / IQR / p95 per suite
+python bench/bench_payload.py --repeats 15 # 1KB / 100KB / 10MB throughput
 ```
 
 Expected: `ALL TESTS PASSED: 50/50 checks` (25 checks × 2 suites) and
-`results/security_tests.csv` written. The test battery asserts via **public confirmation
+`results/security_tests.csv` (organizer-format nine-row summary) and
+`results/security_tests_detailed.csv` (all 50 individual checks) are written. The test battery asserts via **public confirmation
 status only** (states, failure categories, sizes) — key bytes are never printed.
 
 > **Intel macOS note.** `cryptography==50.0.2` publishes no macOS x86_64 wheel, so on Intel

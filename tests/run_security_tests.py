@@ -28,6 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from common.official_payloads import PAYLOADS, ensure_payloads  # noqa: E402
 from protocol import records as rec  # noqa: E402
 from protocol.channels import ClientChannel, ServerChannel  # noqa: E402
 from protocol.suites import (  # noqa: E402
@@ -57,13 +58,6 @@ from tests.harness import (  # noqa: E402
     substitute_handshake_field,
 )
 
-PAYLOADS = [
-    ("payload_1kb.bin", 1024),
-    ("payload_100kb.bin", 102400),
-    ("payload_10mb.bin", 10 * 1024 * 1024),
-]
-PAYLOAD_SEED = b"QFF26-PS-P1-payload-seed-v1"
-
 ROWS: list[dict] = []
 _FAILURES = 0
 
@@ -84,44 +78,6 @@ def check(tid: str, sub: str, suite: str, scenario: str, expected: str,
     if not ok and detail:
         print(f"          detail: {detail}")
     return ok
-
-
-# ---------------------------------------------------------------------------
-# Payloads: deterministic bytes -> stable SHA-256 manifest (committed);
-# payload *.bin files are regenerated locally and never committed.
-# ---------------------------------------------------------------------------
-
-def gen_payload(n: int) -> bytes:
-    out = bytearray()
-    counter = 0
-    while len(out) < n:
-        out += hashlib.sha256(PAYLOAD_SEED + counter.to_bytes(8, "big")).digest()
-        counter += 1
-    return bytes(out[:n])
-
-
-def ensure_payloads() -> dict[str, bytes]:
-    pdir = REPO_ROOT / "data" / "payloads"
-    pdir.mkdir(parents=True, exist_ok=True)
-    data_map: dict[str, bytes] = {}
-    for name, size in PAYLOADS:
-        path = pdir / name
-        if not path.exists() or path.stat().st_size != size:
-            path.write_bytes(gen_payload(size))
-            print(f"  generated {name} ({size} bytes)")
-        data_map[name] = path.read_bytes()
-    manifest = pdir / "payload_sha256.txt"
-    lines = [f"{hashlib.sha256(data_map[name]).hexdigest()}  {name}" for name, _ in PAYLOADS]
-    expected_manifest = "\n".join(lines) + "\n"
-    if not manifest.exists():
-        manifest.write_text(expected_manifest, encoding="utf-8")
-        print(f"  wrote {manifest.name} (commit this manifest)")
-    elif manifest.read_text(encoding="utf-8") != expected_manifest:
-        raise SystemExit(
-            f"FAIL - {manifest} does not match locally generated payloads; "
-            "delete data/payloads/ and re-run to regenerate."
-        )
-    return data_map
 
 
 # ---------------------------------------------------------------------------
@@ -434,14 +390,192 @@ def t9(suite, other_suite, trust, a_sk, b_sk) -> None:
 # ---------------------------------------------------------------------------
 
 def write_csv() -> Path:
-    out = REPO_ROOT / "results" / "security_tests.csv"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    fieldnames = ["test_id", "sub", "suite", "scenario", "expected", "observed",
-                  "status", "detail", "timestamp_utc"]
-    with open(out, "w", newline="", encoding="utf-8") as fh:
-        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+    results_dir = REPO_ROOT / "results"
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    # Preserve every individual wire-level check in a detailed CSV.
+    detail_fields = [
+        "test_id", "sub", "suite", "scenario", "expected",
+        "observed", "status", "detail", "timestamp_utc",
+    ]
+    detailed_out = results_dir / "security_tests_detailed.csv"
+    with open(detailed_out, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(
+            fh, fieldnames=detail_fields, lineterminator="\n"
+        )
         writer.writeheader()
         writer.writerows(ROWS)
+
+    # Organizer template: one aggregate result for each T1-T9 category.
+    template_fields = [
+        "test_id", "description", "injected_fault",
+        "expected", "observed", "result", "run_command",
+    ]
+    template_specs = [
+        ("T1", "Honest run", "none",
+         "handshake ok + payloads decrypt byte-exact"),
+        ("T2", "Handshake tampering", "bit flip in KEM ciphertext",
+         "abort"),
+        ("T3", "Signature tampering", "bit flip in ML-DSA signature",
+         "reject"),
+        ("T4", "Ciphertext tampering", "bit flip in record ciphertext",
+         "InvalidTag"),
+        ("T5", "Tag/AAD tampering", "modified tag or header",
+         "InvalidTag"),
+        ("T6", "Untrusted identity", "attacker key not matching trust anchor",
+         "reject"),
+        ("T7", "Identity swap", "replayed signature in session naming other peer",
+         "reject"),
+        ("T8", "Replay", "resent record / old handshake",
+         "reject or documented limitation"),
+        ("T9", "Algorithm downgrade", "changed algorithm IDs",
+         "reject"),
+    ]
+
+    successful_observations = {
+        "T1": (
+            "Both suites established successfully; all official payloads "
+            "matched byte-for-byte and by SHA-256 in both directions "
+            "(6/6 payload transfers per suite); authenticated close passed in both suites."
+        ),
+        "T2": (
+            "All 16 handshake-message mutation checks aborted without "
+            "traffic-key establishment."
+        ),
+        "T3": "All 4 signature-tampering checks were rejected.",
+        "T4": (
+            "Both suites rejected modified record ciphertext and withheld "
+            "plaintext."
+        ),
+        "T5": (
+            "All 6 tag/header tampering checks were rejected; plaintext "
+            "was withheld."
+        ),
+        "T6": (
+            "Both suites rejected the untrusted attacker identity at "
+            "trust-store lookup."
+        ),
+        "T7": (
+            "Both role-swap checks and both signature-splice checks were "
+            "rejected."
+        ),
+        "T8": (
+            "Record replay, old-session handshake replay, and M1 replay "
+            "were rejected in both suites (6/6 subchecks)."
+        ),
+        "T9": (
+            "Unknown suite IDs and valid-suite substitutions were rejected "
+            "in both suites; no fallback occurred."
+        ),
+    }
+
+    expected_subs = {
+        "T1": {"a", "b", "c"},
+        "T2": {
+            "kem_pk_C", "nonce_C", "id_C", "proto_version",
+            "suite_id", "kem_ct", "nonce_S", "id_S",
+        },
+        "T3": {"sig_S", "sig_C"},
+        "T4": {"record_ct"},
+        "T5": {"gcm_tag", "header_version", "header_direction"},
+        "T6": {"attacker-id"},
+        "T7": {"a-role-swap", "b-sig-splice"},
+        "T8": {
+            "a-record-replay", "b-handshake-replay",
+            "c-m1-replay-cache",
+        },
+        "T9": {"a-unknown-suite", "b-suite-echo-substitution"},
+    }
+    expected_suites = {"QFF26-PQC-1", "QFF26-CLASSICAL-1"}
+
+    summary_rows = []
+    for tid, description, injected_fault, expected in template_specs:
+        matches = [row for row in ROWS if row["test_id"] == tid]
+        failures = [row for row in matches if row["status"] != "PASS"]
+        passed = len(matches) - len(failures)
+        coverage_errors = []
+
+        observed_suites = {row["suite"] for row in matches}
+        if observed_suites != expected_suites:
+            coverage_errors.append(
+                f"expected suites {sorted(expected_suites)}, "
+                f"found {sorted(observed_suites)}"
+            )
+
+        for suite_id in sorted(expected_suites):
+            suite_rows = [
+                row for row in matches if row["suite"] == suite_id
+            ]
+            actual_subs = [row["sub"] for row in suite_rows]
+            actual_set = set(actual_subs)
+            required_set = expected_subs[tid]
+
+            if (
+                len(actual_subs) != len(required_set)
+                or actual_set != required_set
+            ):
+                missing = sorted(required_set - actual_set)
+                unexpected = sorted(actual_set - required_set)
+                duplicates = sorted(
+                    sub for sub in actual_set
+                    if actual_subs.count(sub) > 1
+                )
+                coverage_errors.append(
+                    f"{suite_id}: incomplete/invalid coverage; "
+                    f"missing={missing}, unexpected={unexpected}, "
+                    f"duplicates={duplicates}"
+                )
+
+        all_pass = (
+            bool(matches)
+            and not failures
+            and not coverage_errors
+        )
+
+        if all_pass:
+            observed = (
+                f"{successful_observations[tid]} "
+                f"Coverage verified: {len(matches)} detailed checks "
+                "across both suites."
+            )
+        else:
+            issues = list(coverage_errors)
+            if not matches:
+                issues.append("no detailed checks recorded")
+            if failures:
+                failed_cases = "; ".join(
+                    f'{row["suite"]}: {row["scenario"]} '
+                    f'({row["status"]})'
+                    for row in failures
+                )
+                issues.append(
+                    f"{len(failures)} failed checks: {failed_cases}"
+                )
+            observed = (
+                f"{passed}/{len(matches)} observed detailed checks passed. "
+                + "; ".join(issues)
+            )
+
+        summary_rows.append({
+            "test_id": tid,
+            "description": description,
+            "injected_fault": injected_fault,
+            "expected": expected,
+            "observed": observed,
+            "result": "PASS" if all_pass else "FAIL",
+            "run_command": "python -m tests.run_security_tests",
+        })
+
+    # This is the organizer-format results file.
+    out = results_dir / "security_tests.csv"
+    with open(out, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(
+            fh, fieldnames=template_fields, lineterminator="\n"
+        )
+        writer.writeheader()
+        writer.writerows(summary_rows)
+
+    print(f"Detailed subchecks written to {detailed_out}")
     return out
 
 
@@ -466,12 +600,58 @@ def main() -> None:
         t9(suite, other, trust, a_sk, b_sk)
 
     out = write_csv()
+
+    with out.open("r", newline="", encoding="utf-8") as fh:
+        summary_rows = list(csv.DictReader(fh))
+
+    expected_summary_ids = [f"T{i}" for i in range(1, 10)]
+    actual_summary_ids = [row.get("test_id") for row in summary_rows]
+    unexpected_detail_ids = sorted(
+        {str(row.get("test_id")) for row in ROWS}
+        - set(expected_summary_ids)
+    )
+    summary_structure_ok = (
+        actual_summary_ids == expected_summary_ids
+        and len(ROWS) == 50
+        and not unexpected_detail_ids
+    )
+    coverage_failures = [
+        row for row in summary_rows if row.get("result") != "PASS"
+    ]
+
     elapsed = time.perf_counter() - t0
     total = len(ROWS)
-    print(f"\n{'ALL TESTS PASSED' if _FAILURES == 0 else 'FAILURES PRESENT'}: "
-          f"{total - _FAILURES}/{total} checks in {elapsed:.2f}s")
+    all_pass = (
+        _FAILURES == 0
+        and summary_structure_ok
+        and not coverage_failures
+    )
+
+    status = "ALL TESTS PASSED" if all_pass else "FAILURES PRESENT"
+    print(
+        f"\n{status}: {total - _FAILURES}/{total} detailed checks "
+        f"in {elapsed:.2f}s"
+    )
+
+    if not summary_structure_ok:
+        print(
+            "ERROR: organizer summary IDs/order or detailed-row inventory "
+            "is invalid; "
+            f"summary IDs={actual_summary_ids}, detailed rows={len(ROWS)}, "
+            f"unexpected test IDs={unexpected_detail_ids}"
+        )
+
+    if coverage_failures:
+        failed_ids = ", ".join(
+            row["test_id"] for row in coverage_failures
+        )
+        print(
+            f"Coverage/summary failures: "
+            f"{len(coverage_failures)} ({failed_ids})"
+        )
+
     print(f"results written to {out.relative_to(REPO_ROOT)}")
-    sys.exit(0 if _FAILURES == 0 else 1)
+    sys.exit(0 if all_pass else 1)
 
 
 if __name__ == "__main__":
