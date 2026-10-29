@@ -8,11 +8,58 @@
 
 ## Quick start
 
-This repository supports **Python 3.11–3.13**; Python 3.13 is recommended. The organizer's dependency pin **`cryptography==50.0.2` must remain unchanged**. Setup uses Python's built-in `venv` and `pip`; `uv` is optional.
+**Supported runtime:** Python 3.11–3.13 (Python 3.13 recommended). Install Python 3.13 once before starting; Python 3.15 is not supported by this repository. The organizer dependency pin `cryptography==50.0.2` must remain unchanged. The setup below uses Python's built-in `venv` and `pip`; `uv` is not required.
 
-### After installing dependencies: run the whole validation and benchmark
+### Fresh clone → install dependencies → run all checks and benchmarks
 
-This is the **single recommended command** for teammates and organizers. It runs the environment check, mandatory T1–T9 security suite, both handshake benchmarks, all three official payload sizes, SHA-256 checks, and figure generation. It creates a new timestamped evidence bundle instead of overwriting the committed Platform A results.
+These are the complete commands, not just the final benchmark invocation. They clone the repo, create a clean virtual environment, install requirements, then run the environment check, T1–T9, both handshake suites, all three official payload cases, and figure generation. If any command fails, stop at that step and resolve the error before continuing.
+
+**Windows (PowerShell)**
+
+Run in PowerShell where Python 3.13 is installed through the Python Launcher:
+
+```powershell
+git clone https://github.com/Devo982/SRM-Qiskit-FF-PS-P1.git
+if ($LASTEXITCODE -ne 0) { throw "git clone failed" }
+Set-Location SRM-Qiskit-FF-PS-P1
+py -3.13 --version
+if ($LASTEXITCODE -ne 0) { throw "Install Python 3.13 first; see the Python installation section below." }
+if (Test-Path .venv) { Remove-Item -Recurse -Force .venv }
+py -3.13 -m venv .venv
+if ($LASTEXITCODE -ne 0) { throw "Creating the virtual environment failed" }
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+if ($LASTEXITCODE -ne 0) { throw "Upgrading pip failed" }
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+if ($LASTEXITCODE -ne 0) { throw "Installing requirements failed" }
+.\.venv\Scripts\python.exe -c "import cryptography; print('cryptography', cryptography.__version__)"
+if ($LASTEXITCODE -ne 0) { throw "cryptography import check failed" }
+.\.venv\Scripts\python.exe scripts/run_reproducible_benchmarks.py --platform-label LOCAL
+if ($LASTEXITCODE -ne 0) { throw "Reproducible benchmark run failed; inspect the run logs" }
+```
+
+**macOS / Linux (Bash or Zsh)**
+
+Run from the directory where you want the repository cloned, with `python3.13` installed:
+
+```bash
+git clone https://github.com/Devo982/SRM-Qiskit-FF-PS-P1.git &&
+cd SRM-Qiskit-FF-PS-P1 &&
+python3.13 --version &&
+( [ ! -d .venv ] || rm -rf .venv ) &&
+python3.13 -m venv .venv &&
+.venv/bin/python -m pip install --upgrade pip &&
+.venv/bin/python -m pip install -r requirements.txt &&
+.venv/bin/python -c "import cryptography; print('cryptography', cryptography.__version__)" &&
+.venv/bin/python scripts/run_reproducible_benchmarks.py --platform-label LOCAL
+```
+
+The `&&` chain stops if any step fails. **Already cloned the repository?** Start at your existing repository root and skip only `git clone` plus `Set-Location` / `cd`. Run the remaining commands from `py -3.13 --version` or `python3.13 --version` onward. These commands intentionally recreate `.venv`, so an old Python 3.15 environment is not reused; they do not remove source files or benchmark results.
+
+**Expected success:** the runner ends with `Manifest status: passed` and prints the evidence directory and ZIP path under `results/runs/`. Use `LOCAL` on a teammate/organizer laptop. Use `A` only on the designated Platform A machine. `LOCAL` is not the official constrained Platform B profile.
+
+### Run benchmarks again (environment already installed)
+
+For later runs in an existing checkout with dependencies installed, use just this command from the repository root:
 
 **Windows (PowerShell)**
 
@@ -26,22 +73,9 @@ This is the **single recommended command** for teammates and organizers. It runs
 .venv/bin/python scripts/run_reproducible_benchmarks.py --platform-label LOCAL
 ```
 
-Success ends with `Manifest status: passed` and prints the evidence directory and ZIP path under `results/runs/`. Use `LOCAL` for a teammate/organizer machine. Use `A` only on the designated Platform A machine. `LOCAL` is not the official constrained Platform B profile.
+### Install or locate Python 3.13
 
-### Full setup from a fresh clone
-
-#### 1. Clone the repository
-
-```bash
-git clone https://github.com/Devo982/SRM-Qiskit-FF-PS-P1.git
-cd SRM-Qiskit-FF-PS-P1
-```
-
-Already have a clone? Open a terminal in that repository's root and continue.
-
-#### 2. Install or locate Python 3.13
-
-Use the version-specific executable. Do not assume `python`, `python3`, or `py` automatically selects a supported version.
+Use an explicitly versioned interpreter; do not assume `python`, `python3`, or `py` chooses a supported version.
 
 **Windows (PowerShell)**
 
@@ -58,7 +92,7 @@ If Python 3.13 is missing, install a Python 3.13.x release from [Python's Window
 python3.13 --version
 ```
 
-If missing, install a Python 3.13.x release from [Python's macOS downloads](https://www.python.org/downloads/macos/) and open a new Terminal window. Use the versioned `python3.13` command for the following setup.
+If missing, install a Python 3.13.x release from [Python's macOS downloads](https://www.python.org/downloads/macos/) and open a new Terminal window. Use the versioned `python3.13` command for setup.
 
 **Linux**
 
@@ -68,36 +102,6 @@ python3.13 --version
 ```
 
 If missing, install Python 3.13 and its `venv` support through your distribution's supported package source. Package names vary by distribution; see the [official Python Unix/Linux documentation](https://docs.python.org/3/using/unix.html). Do not replace the operating system's system Python.
-
-#### 3. Recreate the virtual environment and install dependencies
-
-These commands remove and recreate **only the generated `.venv` directory** to prevent an old environment (for example, one built with Python 3.15) from being reused. Run them from the repository root.
-
-**Windows (PowerShell)**
-
-```powershell
-py -3.13 --version
-if (Test-Path .venv) { Remove-Item -Recurse -Force .venv }
-py -3.13 -m venv .venv
-.\.venv\Scripts\python.exe --version
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -c "import cryptography; print('cryptography', cryptography.__version__)"
-```
-
-**macOS / Linux (Bash or Zsh)**
-
-```bash
-python3.13 --version
-if [ -d .venv ]; then rm -rf .venv; fi
-python3.13 -m venv .venv
-.venv/bin/python --version
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -c "import cryptography; print('cryptography', cryptography.__version__)"
-```
-
-Expected: Python `3.13.x` and `cryptography 50.0.2`. Python 3.12 or 3.11 can be used instead by consistently replacing the version-specific interpreter command in the applicable setup commands.
 
 ## What the one-command run produces
 
