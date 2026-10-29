@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """QFF 2026 PS-P1 - Phase 2 environment check (kit contract).
 
-Usage:  python common/env_check.py
-OK:     prints "READY - environment is correct." and writes
-        platform_A_info.json at the repository root. Exit 0.
+Usage:  python common/env_check.py [--platform-label A|B|D|LOCAL] [--output PATH]
+OK:     prints "READY - environment is correct." and writes platform_A_info.json
+        by default. Custom output paths and labels support isolated reproducibility runs.
 Fail:   prints "FAIL - <reason>" (+ hint). Exit 1.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import platform
 import subprocess
@@ -30,6 +31,17 @@ def fail(msg: str, hint: str | None = None) -> None:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--platform-label", choices=("A", "B", "D", "LOCAL"), default="A",
+        help="label this machine's metadata A, B, or D (default: A for the organizer's primary machine)",
+    )
+    parser.add_argument(
+        "--output", type=Path, default=Path("platform_A_info.json"),
+        help="metadata JSON destination (relative paths are resolved from the repository root)",
+    )
+    args = parser.parse_args()
+
     # 1) Python version (repository target: 3.11-3.13; 3.13 recommended)
     v = sys.version_info
     if (v.major, v.minor) not in SUPPORTED_PYTHON:
@@ -157,7 +169,7 @@ def main() -> None:
               if is_intel_mac else "prebuilt wheel")
 
     info = {
-        "platform_label": "A",
+        "platform_label": args.platform_label,
         "os": os_name,
         "os_version": os_version,
         "machine": platform.machine(),
@@ -189,11 +201,12 @@ def main() -> None:
         },
         "primitives_verified": verified,
     }
-    out = REPO_ROOT / "platform_A_info.json"
+    out = args.output if args.output.is_absolute() else REPO_ROOT / args.output
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
 
     print(f"environment: python {platform.python_version()} | cryptography {cryptography.__version__}"
-          f" | primitives: {', '.join(verified)} | wrote {out.name}")
+          f" | primitives: {', '.join(verified)} | wrote {out}")
     print("READY - environment is correct.")
 
 

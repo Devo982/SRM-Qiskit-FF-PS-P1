@@ -71,6 +71,7 @@ def bench_suite(
     signature_name: str,
     runs: int,
     run_id: str,
+    platform_label: str,
 ) -> tuple[dict, dict, list[dict]]:
     client_sk, client_vk = sig_generate(suite)
     server_sk, server_vk = sig_generate(suite)
@@ -164,7 +165,7 @@ def bench_suite(
 
     official_row = {
         "run_id": run_id,
-        "platform": "A",
+        "platform": platform_label,
         "mode": mode,
         "kem": kem_name,
         "signature": signature_name,
@@ -189,7 +190,7 @@ def bench_suite(
         "min_ms": round(ordered[0], 3),
         "max_ms": round(ordered[-1], 3),
         "run_id": run_id,
-        "platform": "A",
+        "platform": platform_label,
         "mode": mode,
         "kem": kem_name,
         "signature": signature_name,
@@ -221,17 +222,29 @@ def bench_suite(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--runs",
-        type=int,
-        default=100,
-        help="handshake attempts per suite (minimum 10)",
+        "--runs", type=int, default=100,
+        help="handshake attempts per suite (minimum 10; default 100)",
+    )
+    parser.add_argument(
+        "--platform-label", choices=("A", "B", "D", "LOCAL"), default="LOCAL",
+        help="machine label written into result rows (default LOCAL; use A only on the designated Platform A machine)",
+    )
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path("results/runs/manual/tables"),
+        help="directory for CSV outputs (default is an ignored local scratch folder; use results/tables only when intentionally updating official evidence)",
+    )
+    parser.add_argument(
+        "--run-id", default=None,
+        help="shared run identifier; generated from UTC time if omitted",
     )
     args = parser.parse_args()
 
     if args.runs < 10:
         parser.error("--runs must be at least 10")
 
-    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    output_dir = args.output_dir if args.output_dir.is_absolute() else REPO_ROOT / args.output_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     configs = (
         (QFF26_PQC_1, "PQC", "ML-KEM-768", "ML-DSA-65"),
@@ -255,6 +268,7 @@ def main() -> None:
             signature_name,
             args.runs,
             run_id,
+            args.platform_label,
         )
         official_rows.append(official)
         supplementary_rows.append(supplementary)
@@ -303,25 +317,25 @@ def main() -> None:
     ]
 
     write_csv(
-        REPO_ROOT / "results" / "tables" / "handshake_results.csv",
+        output_dir / "handshake_results.csv",
         official_rows,
         official_fields,
     )
     write_csv(
-        REPO_ROOT / "results" / "tables" / "bench_handshake.csv",
+        output_dir / "bench_handshake.csv",
         supplementary_rows,
         supplementary_fields,
     )
     write_csv(
-        REPO_ROOT / "results" / "tables" / "handshake_raw_samples.csv",
+        output_dir / "handshake_raw_samples.csv",
         raw_sample_rows,
         ["suite", "trial", "ms"],
     )
 
     print("Measurements are local/in-process, not network measurements.")
-    print("Official results: results/tables/handshake_results.csv")
-    print("Supplementary results: results/tables/bench_handshake.csv")
-    print("Raw successful-trial timings: results/tables/handshake_raw_samples.csv")
+    print(f"Official results: {output_dir / 'handshake_results.csv'}")
+    print(f"Supplementary results: {output_dir / 'bench_handshake.csv'}")
+    print(f"Raw successful-trial timings: {output_dir / 'handshake_raw_samples.csv'}")
 
 
 if __name__ == "__main__":

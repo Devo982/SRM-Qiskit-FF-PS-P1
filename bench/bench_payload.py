@@ -219,15 +219,23 @@ def bench_pair(suite, data: bytes, repeats: int, expected_sha256: str) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--repeats",
-        type=int,
-        default=15,
-        help="complete bidirectional rounds per payload and suite",
+        "--repeats", type=int, default=15,
+        help="complete bidirectional rounds per payload and suite (default 15)",
+    )
+    parser.add_argument(
+        "--platform-label", choices=("A", "B", "D", "LOCAL"), default="LOCAL",
+        help="machine label written into result rows (default LOCAL; use A only on the designated Platform A machine)",
+    )
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path("results/runs/manual/tables"),
+        help="directory for CSV outputs (default is an ignored local scratch folder; use results/tables only when intentionally updating official evidence)",
     )
     args = parser.parse_args()
 
     if args.repeats < 1:
         parser.error("--repeats must be at least 1")
+    output_dir = args.output_dir if args.output_dir.is_absolute() else REPO_ROOT / args.output_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     payloads = ensure_payloads()
     official_rows = []
@@ -249,7 +257,7 @@ def main() -> None:
             )
 
             official_rows.append({
-                "platform": "A",
+                "platform": args.platform_label,
                 "mode": mode,
                 "payload": name,
                 "plaintext_bytes": size,
@@ -294,13 +302,13 @@ def main() -> None:
     ]
 
     write_csv(
-        REPO_ROOT / "results" / "tables" / "payload_results.csv",
+        output_dir / "payload_results.csv",
         official_rows,
         template_columns,
     )
 
     write_csv(
-        REPO_ROOT / "results" / "tables" / "bench_payload.csv",
+        output_dir / "bench_payload.csv",
         throughput_rows,
         [
             "suite",
@@ -317,8 +325,8 @@ def main() -> None:
         "12-byte nonce is derived and not transmitted; total wire overhead = 32 B."
     )
     print("Measurements are local/in-process.")
-    print("Official payload results: results/tables/payload_results.csv")
-    print("Supplementary throughput: results/tables/bench_payload.csv")
+    print(f"Official payload results: {output_dir / 'payload_results.csv'}")
+    print(f"Supplementary throughput: {output_dir / 'bench_payload.csv'}")
 
 
 if __name__ == "__main__":

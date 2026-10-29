@@ -19,3 +19,6 @@ Phase One/results/figures/*
 # --- Phase 2 (PS-P1) additions ---
 data/payloads/*.bin
 results/logs/
+
+# Per-machine reproducibility bundles are generated locally and should be shared deliberately.
+results/runs/

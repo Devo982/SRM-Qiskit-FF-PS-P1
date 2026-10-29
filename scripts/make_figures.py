@@ -13,6 +13,7 @@ that fallback on the plot rather than inventing individual timing samples.
 """
 from __future__ import annotations
 
+import argparse
 import csv
 from pathlib import Path
 
@@ -24,6 +25,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 TABLES = ROOT / "results" / "tables"
 FIGURES = ROOT / "results" / "figures"
+PLATFORM_LABEL = "A"
 
 
 def read_csv(name: str) -> list[dict[str, str]]:
@@ -57,15 +59,15 @@ def annotate_values(ax, bars, fmt: str, top_extensions: list[float] | None = Non
 
 def set_platform_note(fig) -> None:
     # Reserve a separate bottom strip for this note so it never overlaps axis labels.
-    fig.text(0.5, 0.025, "Platform A, local/in-process", ha="center", fontsize=9)
+    fig.text(0.5, 0.025, f"Platform {PLATFORM_LABEL}, local/in-process", ha="center", fontsize=9)
 
 
 def handshake_latency() -> None:
     rows = read_csv("handshake_results.csv")
-    wanted = {r["mode"]: r for r in rows if r.get("platform") == "A"}
+    wanted = {r["mode"]: r for r in rows if r.get("platform") == PLATFORM_LABEL}
     modes = ["PQC", "classical-baseline"]
     if any(mode not in wanted for mode in modes):
-        raise ValueError("handshake_results.csv must contain Platform A PQC and classical-baseline rows")
+        raise ValueError(f"handshake_results.csv must contain Platform {PLATFORM_LABEL} PQC and classical-baseline rows")
 
     values = [float(wanted[m]["median_handshake_ms"]) for m in modes]
     labels = [label_for(m) for m in modes]
@@ -100,10 +102,11 @@ def handshake_latency() -> None:
     bars = ax.bar(labels, values, yerr=np.array([lower_err, upper_err]), capsize=6)
     annotate_values(ax, bars, "{:.3f} ms", top_extensions=upper_err)
     ax.set_ylim(0, max(v + e for v, e in zip(values, upper_err)) * 1.22)
+    trial_count = min(int(wanted[m]["trials"]) for m in modes)
     fig.suptitle("Median handshake latency by cipher suite", y=0.965, fontsize=15)
     fig.text(
         0.5, 0.905,
-        "Bars: recorded median · whiskers: empirical Q1–Q3 from 100 raw trials",
+        f"Bars: recorded median · whiskers: empirical Q1–Q3 from {trial_count} raw trials",
         ha="center", va="center", fontsize=9,
     )
     ax.set_ylabel("Median handshake latency (ms)")
@@ -125,10 +128,10 @@ def handshake_latency() -> None:
 
 def handshake_message_bytes() -> None:
     rows = read_csv("bench_handshake.csv")
-    wanted = {r["mode"]: r for r in rows if r.get("platform") == "A"}
+    wanted = {r["mode"]: r for r in rows if r.get("platform") == PLATFORM_LABEL}
     modes = ["PQC", "classical-baseline"]
     if any(mode not in wanted for mode in modes):
-        raise ValueError("bench_handshake.csv must contain Platform A PQC and classical-baseline rows")
+        raise ValueError(f"bench_handshake.csv must contain Platform {PLATFORM_LABEL} PQC and classical-baseline rows")
     messages = ["M1", "M2", "M3"]
     fields = ["m1_bytes", "m2_bytes", "m3_bytes"]
     x = np.arange(len(messages))
@@ -141,7 +144,12 @@ def handshake_message_bytes() -> None:
         all_bars.extend(bars)
         annotate_values(ax, bars, "{:.0f} B")
     ax.set_xticks(x, messages)
-    ax.set_title("Serialized handshake bytes by message (n=100 trials)")
+    # The official handshake_results.csv uses "trials"; the supplementary
+    # bench_handshake.csv uses "runs" for the same attempted-trial count.
+    trial_count = min(int(wanted[m].get("trials") or wanted[m].get("runs") or "0") for m in modes)
+    if trial_count < 1:
+        raise ValueError("bench_handshake.csv rows must include a positive trials or runs count")
+    ax.set_title(f"Serialized handshake bytes by message (n={trial_count} trials)")
     ax.set_xlabel("Handshake message")
     ax.set_ylabel("Serialized message size (bytes)")
     ax.legend(fontsize=8)
@@ -158,11 +166,11 @@ def payload_10mb_timing() -> None:
     rows = read_csv("payload_results.csv")
     wanted = {
         row["mode"]: row for row in rows
-        if row.get("platform") == "A" and row.get("payload") == "payload_10MB.bin"
+        if row.get("platform") == PLATFORM_LABEL and row.get("payload") == "payload_10MB.bin"
     }
     modes = ["PQC", "classical-baseline"]
     if any(mode not in wanted for mode in modes):
-        raise ValueError("payload_results.csv must contain Platform A 10 MB rows for both suites")
+        raise ValueError(f"payload_results.csv must contain Platform {PLATFORM_LABEL} 10 MB rows for both suites")
     operations = ["Encrypt", "Decrypt"]
     fields = ["median_encrypt_ms", "median_decrypt_ms"]
     x = np.arange(len(operations))
@@ -173,7 +181,8 @@ def payload_10mb_timing() -> None:
         bars = ax.bar(x + offset, vals, width, label=label_for(mode))
         annotate_values(ax, bars, "{:.3f} ms")
     ax.set_xticks(x, operations)
-    ax.set_title("10 MB payload median operation time (n=30 samples per operation)")
+    sample_count = min(int(row["trials"]) for row in wanted.values())
+    ax.set_title(f"10 MB payload median operation time (n={sample_count} samples per operation)")
     ax.set_xlabel("Record operation")
     ax.set_ylabel("Median operation time (ms)")
     ax.legend(fontsize=8)
@@ -187,13 +196,32 @@ def payload_10mb_timing() -> None:
 
 
 def main() -> None:
+    global TABLES, FIGURES, PLATFORM_LABEL
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--tables-dir", type=Path, default=Path("results/runs/manual/tables"),
+        help="input CSV directory (default reads ignored local scratch results; use results/tables to regenerate official figures)",
+    )
+    parser.add_argument(
+        "--output-dir", type=Path, default=Path("results/runs/manual/figures"),
+        help="destination directory (default is an ignored local scratch folder; use results/figures only when intentionally updating official figures)",
+    )
+    parser.add_argument(
+        "--platform-label", choices=("A", "B", "D", "LOCAL"), default="LOCAL",
+        help="select the platform's rows and annotate figures (default LOCAL)",
+    )
+    args = parser.parse_args()
+    TABLES = args.tables_dir if args.tables_dir.is_absolute() else ROOT / args.tables_dir
+    FIGURES = args.output_dir if args.output_dir.is_absolute() else ROOT / args.output_dir
+    PLATFORM_LABEL = args.platform_label
+
     handshake_latency()
     handshake_message_bytes()
     payload_10mb_timing()
-    print("Figures written from results/tables/*.csv:")
-    print("  results/figures/handshake_latency.png")
-    print("  results/figures/handshake_message_bytes.png")
-    print("  results/figures/payload_10mb_timing.png")
+    print(f"Figures written using Platform {PLATFORM_LABEL} rows from {TABLES}:")
+    print(f"  {FIGURES / 'handshake_latency.png'}")
+    print(f"  {FIGURES / 'handshake_message_bytes.png'}")
+    print(f"  {FIGURES / 'payload_10mb_timing.png'}")
 
 
 if __name__ == "__main__":
