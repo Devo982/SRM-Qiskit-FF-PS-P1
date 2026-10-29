@@ -18,7 +18,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REQUIRED_CRYPTOGRAPHY = "50.0.2"
-SUPPORTED_PYTHON = {(3, 10), (3, 11), (3, 12), (3, 13)}
+SUPPORTED_PYTHON = {(3, 11), (3, 12), (3, 13)}
 REQUIRED_ANALYSIS = ("psutil", "numpy", "pandas", "matplotlib")
 
 
@@ -30,10 +30,10 @@ def fail(msg: str, hint: str | None = None) -> None:
 
 
 def main() -> None:
-    # 1) Python version (kit: 3.10-3.13; analysis requirements use compatible minimums)
+    # 1) Python version (repository target: 3.11-3.13; 3.13 recommended)
     v = sys.version_info
     if (v.major, v.minor) not in SUPPORTED_PYTHON:
-        fail(f"Python {v.major}.{v.minor} not supported (need 3.10-3.13; kit recommends 3.13)")
+        fail(f"Python {v.major}.{v.minor} not supported (need 3.11-3.13; 3.13 recommended)")
 
     # 2) cryptography, exact kit pin
     try:

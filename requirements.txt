@@ -1,11 +1,11 @@
 # QFF 2026 PS-P1 - Phase 2 requirements
-# Python 3.10-3.13 supported; analysis packages use kit-compatible minimums.
+# Python 3.11-3.13 supported (3.13 recommended); analysis minimums target this range.
 # Validated on Platform A with CPython 3.13.17.
 
 # Kit pin - do not change:
 cryptography==50.0.2
 
-# Analysis / benchmarking stack (minimums chosen to keep Python 3.10 support):
+# Analysis / benchmarking stack (compatible minimums for Python 3.11-3.13):
 psutil>=5.9
 numpy>=1.24
 pandas>=2.0

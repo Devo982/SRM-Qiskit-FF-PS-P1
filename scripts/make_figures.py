@@ -38,17 +38,20 @@ def label_for(mode: str) -> str:
     return "PQC (ML-KEM-768 + ML-DSA-65)" if mode.lower() == "pqc" else "Classical (X25519 + Ed25519)"
 
 
-def annotate_values(ax, bars, fmt: str) -> None:
-    for bar in bars:
+def annotate_values(ax, bars, fmt: str, top_extensions: list[float] | None = None) -> None:
+    """Label bars; optional top_extensions move labels above error-bar caps."""
+    extensions = top_extensions or [0.0] * len(bars)
+    for bar, extension in zip(bars, extensions):
         height = bar.get_height()
         ax.annotate(
             fmt.format(height),
-            (bar.get_x() + bar.get_width() / 2, height),
-            xytext=(0, 4),
+            (bar.get_x() + bar.get_width() / 2, height + extension),
+            xytext=(0, 6),
             textcoords="offset points",
             ha="center",
             va="bottom",
             fontsize=8,
+            clip_on=False,
         )
 
 
@@ -95,8 +98,14 @@ def handshake_latency() -> None:
 
     fig, ax = plt.subplots(figsize=(8.8, 5.4))
     bars = ax.bar(labels, values, yerr=np.array([lower_err, upper_err]), capsize=6)
-    annotate_values(ax, bars, "{:.3f} ms")
-    ax.set_title("Median handshake latency with IQR error bars (n=100 trials)")
+    annotate_values(ax, bars, "{:.3f} ms", top_extensions=upper_err)
+    ax.set_ylim(0, max(v + e for v, e in zip(values, upper_err)) * 1.22)
+    fig.suptitle("Median handshake latency by cipher suite", y=0.965, fontsize=15)
+    fig.text(
+        0.5, 0.905,
+        "Bars: recorded median · whiskers: empirical Q1–Q3 from 100 raw trials",
+        ha="center", va="center", fontsize=9,
+    )
     ax.set_ylabel("Median handshake latency (ms)")
     ax.set_xlabel("Cipher suite")
     ax.grid(axis="y", alpha=0.25)
@@ -107,7 +116,7 @@ def handshake_latency() -> None:
             "Fallback: IQR width centered on median\n(raw per-trial samples not present yet)",
             transform=ax.transAxes, ha="right", va="top", fontsize=8,
         )
-    fig.subplots_adjust(left=0.13, right=0.98, bottom=0.29, top=0.87)
+    fig.subplots_adjust(left=0.13, right=0.98, bottom=0.29, top=0.82)
     set_platform_note(fig)
     FIGURES.mkdir(parents=True, exist_ok=True)
     fig.savefig(FIGURES / "handshake_latency.png", dpi=180)

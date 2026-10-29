@@ -4,8 +4,7 @@
 **Repo:** `Devo982/SRM-Qiskit-FF-PS-P1` · **Track:** 5 — Post-Quantum Cryptography
 **Platform of record:** Intel Mac (x86_64 native), macOS 15.8.2, CPython 3.13.17,
 `cryptography==50.0.2` (kit pin; see `platform_A_info.json` for the recorded
-install origin). **Supported Python:** 3.10–3.13 (3.13 recommended); analysis
-packages use kit-compatible minimum versions so Python 3.10 can resolve supported releases.
+install origin). **Supported Python:** 3.11–3.13 (3.13 recommended). The recorded Platform A run used CPython 3.13.17; Python 3.11 and 3.12 are declared targets but were not separately exercised for this submission.
 
 ---
 
@@ -569,8 +568,8 @@ independently audited. Explicit assumptions and limitations:
 
 ## 8. Reproduction guide
 
-Clean clone on Python 3.10–3.13 (3.13 recommended). The analysis dependencies
-use minimum compatible versions so that Python 3.10 resolves supported releases;
+Clean clone on Python 3.11–3.13 (3.13 recommended). The analysis dependencies
+use minimum compatible versions for the declared Python 3.11–3.13 range;
 `cryptography==50.0.2` remains the exact organizer pin.
 
 ```bash

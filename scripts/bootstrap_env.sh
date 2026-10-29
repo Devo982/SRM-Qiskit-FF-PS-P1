@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # QFF 2026 PS-P1 - interpreter probe + .venv creation
-# Kit contract: Python 3.10-3.13 supported, 3.13 recommended; requirements use compatible minimums.
+# Repository target: Python 3.11-3.13 supported, 3.13 recommended.
 # Usage:
 #   ./scripts/bootstrap_env.sh                  # probe + create/recreate .venv
 #   ./scripts/bootstrap_env.sh --python PATH    # explicit interpreter override
@@ -10,7 +10,7 @@ say() { printf '\033[1;36m==> %s\033[0m\n' "$*"; }
 ok()  { printf '\033[1;32m  OK\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31mFAIL\033[0m %s\n' "$*" >&2; exit 1; }
 
-RANGE_CHECK='import sys; assert sys.version_info[:2] in {(3,10),(3,11),(3,12),(3,13)}'
+RANGE_CHECK='import sys; assert sys.version_info[:2] in {(3,11),(3,12),(3,13)}'
 in_range() { "$1" -c "$RANGE_CHECK" >/dev/null 2>&1; }
 
 # venv counts as created only if it also has a working pip (ensurepip present)
@@ -28,17 +28,17 @@ if [[ "${1:-}" == "--python" ]]; then
   command -v "${2}" >/dev/null 2>&1 || die "not executable: ${2}"
   CANDIDATES=("${2}")
 else
-  CANDIDATES=(python3.13 python3.12 python3.11 python3.10)
+  CANDIDATES=(python3.13 python3.12 python3.11)
 fi
 
-say "Probing for a supported interpreter (3.10-3.13, prefer 3.13)"
+say "Probing for a supported interpreter (3.11-3.13, prefer 3.13)"
 FOUND=()
 for c in "${CANDIDATES[@]}"; do
   if command -v "$c" >/dev/null 2>&1; then
     if in_range "$(command -v "$c")"; then
       FOUND+=("$(command -v "$c")")
     else
-      printf '    found %s but it is outside 3.10-3.13, skipping\n' "$c"
+      printf '    found %s but it is outside 3.11-3.13, skipping\n' "$c"
     fi
   fi
 done
@@ -51,7 +51,7 @@ if command -v python3 >/dev/null 2>&1 && in_range "$(command -v python3)"; then
   if [[ "$SKIP" -eq 0 ]]; then FOUND+=("$P3"); fi
 fi
 if [[ "${#FOUND[@]}" -eq 0 ]]; then
-  die "no supported interpreter found (need 3.10-3.13, recommend 3.13).
+  die "no supported interpreter found (need 3.11-3.13, recommend 3.13).
 On macOS without Homebrew, install the python.org 'macOS 64-bit universal2' installer:
   https://www.python.org/downloads/macos/   (latest 3.13.x)
 then re-run:

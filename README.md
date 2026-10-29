@@ -1,4 +1,4 @@
-# QFF 2026 Track 5 — Team [TEAM NAME] | PS-P1 Quantum-Safe Secure Communication Channel
+# QFF 2026 Track 5 — SRM-Qiskit-FF-PS-P1 | PS-P1 Quantum-Safe Secure Communication Channel
 
 **Challenge:** Qiskit Fall Fest 2026 · Track 5 · **Problem Statement PS-P1**
 
@@ -6,14 +6,13 @@
 
 **Integration contract:** [docs/INTEGRATION_CONTRACT.md](docs/INTEGRATION_CONTRACT.md)
 
-## Team members
+## Team members and submission contact
 
-| Role | Name | Institution / contact |
+| Role | Name | Contact |
 |---|---|---|
-| Team lead | [Fill in] | [Fill in] |
-| Member 2 | [Fill in] | [Fill in] |
-| Member 3 | [Fill in] | [Fill in] |
-| Member 4 (if applicable) | [Fill in or remove row] | [Fill in or remove row] |
+| Primary repository contact | Vasisht Hire | This repository: [Devo982/SRM-Qiskit-FF-PS-P1](https://github.com/Devo982/SRM-Qiskit-FF-PS-P1) |
+
+The supplied repository snapshot did not identify the complete registered team roster. Add the actual names and contacts of all other registered members here before the final submission; no teammate names have been inferred or invented for this README.
 
 ## Summary
 
@@ -23,7 +22,7 @@ The T1–T9 fault-injection battery has 52 detailed checks across the two suites
 
 ## Setup
 
-Requirements: Python 3.10–3.13 (3.13 recommended) and pip. Analysis dependencies use minimum compatible versions so that Python 3.10 remains resolvable. `cryptography==50.0.2` is the organizer's exact pin and must not be changed.
+Requirements: Python 3.11–3.13 (3.13 recommended) and pip. Python 3.13.17 is the version exercised for the recorded Platform A run; Python 3.11 and 3.12 are supported targets but were not separately tested for this submission. `cryptography==50.0.2` is the organizer's exact pin and must not be changed.
 
 ```bash
 # 1. Clone the repository and enter it
@@ -79,7 +78,7 @@ Run metadata in `platform_A_info.json` was generated at `2026-10-29T21:13:19+00:
 | `pandas` | `>=2.0` | `3.1.0` |
 | `matplotlib` | `>=3.7` | `3.11.2` |
 
-The analysis-package minimums are intentionally not exact pins: PyPI declares NumPy 2.5.4 as Python >=3.12, and pandas 3.1.0 plus matplotlib 3.11.2 as Python >=3.11. The lower bounds above let pip select compatible releases for Python 3.10 while preserving `cryptography==50.0.2`. The existing Platform A environment used the versions shown in the last column.
+The analysis-package minimums are intentionally not exact pins: PyPI declares NumPy 2.5.4 as Python >=3.12, and pandas 3.1.0 plus matplotlib 3.11.2 as Python >=3.11. The lower bounds above let pip select compatible releases across the declared Python 3.11–3.13 range while preserving `cryptography==50.0.2`. The recorded Platform A environment used the versions shown in the last column; only Python 3.13.17 was exercised for this submission.
 
 ## Tests
 
@@ -93,7 +92,7 @@ The analysis-package minimums are intentionally not exact pins: PyPI declares Nu
 
 ## Verification
 
-Requested verification line: **`ALL TESTS PASSED: 52/52 checks`**. The current test runner's exact format includes the word `detailed` and elapsed time, e.g. `ALL TESTS PASSED: 52/52 detailed checks in <seconds>s`; test logic is unchanged.
+On the recorded local run, the runner printed **`ALL TESTS PASSED: 52/52 detailed checks in 0.56s`**. The duration is measured at runtime and will vary; the stable pass criterion is `ALL TESTS PASSED: 52/52 detailed checks`.
 
 ## Results
 
@@ -142,7 +141,7 @@ All current committed result files are linked below. Benchmark CSVs are the sour
 
 ## Intel-Mac note
 
-`cryptography==50.0.2` is the organizer's fixed pin. On Intel macOS (x86_64), consult [the Intel Mac environment helper](scripts/QFF2026_intel_mac_env_setup.sh) before installing if pip cannot use a compatible wheel; the helper prepares the static OpenSSL environment documented in the script. The installed origin is recorded honestly in `platform_A_info.json`. Stock macOS `/usr/bin/python3` can be Python 3.9, which is below this repo's Python 3.10 minimum; use a supported interpreter and activate `.venv` before running commands.
+`cryptography==50.0.2` is the organizer's fixed pin. On Intel macOS (x86_64), consult [the Intel Mac environment helper](scripts/QFF2026_intel_mac_env_setup.sh) before installing if pip cannot use a compatible wheel; the helper prepares the static OpenSSL environment documented in the script. The installed origin is recorded honestly in `platform_A_info.json`. Stock macOS `/usr/bin/python3` can be Python 3.9, which is below this repo's Python 3.11 minimum; use a supported interpreter and activate `.venv` before running commands.
 
 ## Repository layout
 
