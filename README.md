@@ -16,39 +16,98 @@ The supplied repository snapshot did not identify the complete registered team r
 
 ## Quick start (Windows, macOS, and Linux)
 
-**Requirements:** Python 3.11–3.13 (Python 3.13 recommended), Git, and an internet connection for installing dependencies. `cryptography==50.0.2` is the organizer’s fixed pin and must not be changed. The recorded benchmark data comes from Platform A, an Intel Mac running macOS; the instructions below are intended for other supported machines too. A platform is not considered tested until the commands below have been run successfully on it. If you already have a clone, use that checkout and skip the `git clone` command.
+**This section is the complete setup path; `uv` is not required.** The environment checker currently supports **Python 3.11, 3.12, and 3.13**; Python 3.13 is recommended. Python 3.15 is not accepted by this repository yet. Installing dependencies into a Python 3.15 environment will not fix the version check: create `.venv` with an explicitly supported interpreter as shown below. The fixed organizer dependency `cryptography==50.0.2` must not be changed.
 
-The commands use the virtual environment’s Python directly, so activation is not required.
+You need Git, one supported Python interpreter, and internet access to install dependencies. If you already cloned the repository, skip `git clone` and run the commands from that checkout's root directory.
 
-### Windows (PowerShell)
+### 1. Install or locate a supported Python version
+
+Do **not** assume that the unversioned `python`, `python3`, or `py -3` command chooses a compatible version. Check for Python 3.13 explicitly.
+
+**Windows (PowerShell)**
 
 ```powershell
-git clone https://github.com/Devo982/SRM-Qiskit-FF-PS-P1.git
-Set-Location SRM-Qiskit-FF-PS-P1
-py -3.13 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe scripts/run_security_suite.py
-.\.venv\Scripts\python.exe -m tests.test_regressions
-.\.venv\Scripts\python.exe -m cli.demo --suite QFF26-PQC-1
+py -0p
+py -3.13 --version
 ```
 
-If Python 3.13 is not installed, use an installed supported version by changing `-3.13` to `-3.12` or `-3.11`.
+If `py -3.13` reports that the version is not installed, download a Python **3.13.x Windows installer** from [python.org's Windows downloads](https://www.python.org/downloads/windows/). Install it, leave the Python Launcher enabled, open a new PowerShell window, and verify `py -3.13 --version` reports `Python 3.13.x`. Python 3.12 or 3.11 can be selected using `py -3.12` or `py -3.11` if needed.
 
-### macOS and Linux (Bash/Zsh)
+**macOS**
+
+```bash
+python3.13 --version
+```
+
+If the command is not found, install a Python **3.13.x macOS installer** from [python.org's macOS downloads](https://www.python.org/downloads/macos/), then open a new Terminal window and repeat the version check. This applies to Intel and Apple Silicon Macs. Do not use an older system Python or the unversioned `python3` command unless you have verified its version.
+
+**Linux**
+
+```bash
+command -v python3.13
+python3.13 --version
+```
+
+If Python 3.13 is missing, install `python3.13` and its `venv` support from your Linux distribution's supported package source. Package names and availability differ by distribution; see the [official Python Unix/Linux documentation](https://docs.python.org/3/using/unix.html) for platform guidance. On Debian/Ubuntu-based systems, the package providing virtual environments may be named `python3.13-venv` when the distribution provides Python 3.13. If your distribution does not provide it, use an approved Python 3.13 installation method for that distribution. Do not replace or modify the system Python.
+
+### 2. Clone the repository (new checkout only)
 
 ```bash
 git clone https://github.com/Devo982/SRM-Qiskit-FF-PS-P1.git
 cd SRM-Qiskit-FF-PS-P1
-python3.13 -m venv .venv
-.venv/bin/python -m pip install --upgrade pip
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python scripts/run_security_suite.py
-.venv/bin/python -m tests.test_regressions
-.venv/bin/python -m cli.demo --suite QFF26-PQC-1
 ```
 
-If `python3.13` is not installed, use `python3.12` or `python3.11` for the virtual-environment creation command. Check the selected interpreter before installing: `python3.13 --version` (or the versioned command you chose). Do not use an unsupported system Python such as an older `/usr/bin/python3`. The optional `./scripts/bootstrap_env.sh` helper is Bash-only and can prepare a `.venv` on macOS/Linux; the explicit commands above are preferred when selecting a particular Python version.
+If you already have the repository, `cd` to its root instead. The next commands intentionally recreate `.venv` so a previously created Python 3.15 environment cannot silently be reused. They remove **only the generated `.venv` directory**, not source files or results.
+
+### 3. Create a clean environment and install the pinned dependencies
+
+**Windows (PowerShell)**
+
+```powershell
+py -3.13 --version
+if (Test-Path .venv) { Remove-Item -Recurse -Force .venv }
+py -3.13 -m venv .venv
+.\.venv\Scripts\python.exe --version
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -c "import cryptography; print('cryptography', cryptography.__version__)"
+```
+
+**macOS and Linux (Bash/Zsh)**
+
+```bash
+python3.13 --version
+if [ -d .venv ]; then rm -rf .venv; fi
+python3.13 -m venv .venv
+.venv/bin/python --version
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -c "import cryptography; print('cryptography', cryptography.__version__)"
+```
+
+Expected checks: Python prints `3.13.x` and cryptography prints `50.0.2`. If using Python 3.12 or 3.11, replace `py -3.13` with `py -3.12`/`py -3.11` on Windows, or `python3.13` with `python3.12`/`python3.11` on macOS/Linux consistently in the environment-creation command. The virtual environment's `python` then keeps using the chosen version.
+
+### 4. Run validation and the full reproducibility workflow
+
+Windows (PowerShell):
+
+```powershell
+.\.venv\Scripts\python.exe scripts/run_security_suite.py
+.\.venv\Scripts\python.exe -m tests.test_regressions
+.\.venv\Scripts\python.exe scripts/run_reproducible_benchmarks.py --platform-label LOCAL
+```
+
+macOS/Linux:
+
+```bash
+.venv/bin/python scripts/run_security_suite.py
+.venv/bin/python -m tests.test_regressions
+.venv/bin/python scripts/run_reproducible_benchmarks.py --platform-label LOCAL
+```
+
+For the all-in-one benchmark, the expected final status is `Manifest status: passed`. It runs the environment check, T1–T9, both handshake suites, the three official payloads in both directions, and figure generation. Each invocation creates a distinct run directory and ZIP under `results/runs/`. Use `--platform-label A` only on the designated Platform A machine. Use `LOCAL` on a teammate/organizer laptop; this is not the constrained Platform B profile.
+
+**If the error says `Python 3.15 not supported`:** the `.venv` still uses Python 3.15. Re-run Step 1 to install/find Python 3.13, then Step 3 exactly from the repository root. Do not edit the environment check to bypass the guard and do not merely reinstall packages in the old environment.
 
 ### What the security launcher does
 
@@ -187,7 +246,10 @@ All current committed result files are linked below. Benchmark CSVs are the sour
 
 ## Platform-specific troubleshooting
 
-`cryptography==50.0.2` is the organizer's fixed pin. First try the normal `pip install -r requirements.txt` instructions above on your own OS and architecture. **Only on Intel macOS (x86_64)**, if pip cannot install a compatible wheel for the pinned `cryptography` version, consult the [Intel Mac environment helper](scripts/QFF2026_intel_mac_env_setup.sh); it prepares the static OpenSSL environment documented in that script. This helper is not a general Windows/Linux/Apple-Silicon setup path. Stock macOS `/usr/bin/python3` may be older than the required Python 3.11 minimum, so use an explicitly supported interpreter.
+- **`Python 3.15 not supported`:** this is an interpreter-version mismatch, not a cryptographic test failure. Follow Quick start Steps 1 and 3 to install/find Python 3.13 and recreate `.venv` with the versioned interpreter. The repo currently accepts only Python 3.11–3.13; do not remove the guard without separately validating the dependencies and full test/benchmark workflow on another version.
+- **`No matching distribution`, or `cryptography==50.0.2` cannot install:** confirm that the active interpreter is Python 3.11–3.13 and that the pinned requirements have not been changed. On Intel macOS (x86_64) only, if `pip` cannot install a compatible wheel for the organizer's fixed cryptography pin, consult the [Intel Mac environment helper](scripts/QFF2026_intel_mac_env_setup.sh). It is not a general Windows/Linux/Apple-Silicon setup path.
+- **Wrong environment is still active:** run `.venv/bin/python --version` on macOS/Linux or ` .\.venv\Scripts\python.exe --version` on Windows, from the repository root. Always call the interpreter inside `.venv` for project commands; do not rely on whichever `python` happens to be first on `PATH`.
+- **No `uv` command:** nothing is missing. `uv` is optional; all setup steps in this README use the standard Python `venv` module and `pip`.
 
 ## Repository layout
 
