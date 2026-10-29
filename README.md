@@ -62,7 +62,7 @@ is the kit pin and must not change.
 ```bash
 git clone https://github.com/Devo982/SRM-Qiskit-FF-PS-P1.git
 cd SRM-Qiskit-FF-PS-P1
-python3 -m venv .venv && source .venv/bin/activate      # or: uv venv .venv
+./scripts/bootstrap_env.sh && source .venv/bin/activate      # or: uv venv .venv
 pip install -r requirements.txt
 
 python common/env_check.py                # -> READY - environment is correct.
@@ -83,6 +83,11 @@ status only** (states, failure categories, sizes) — key bytes are never printe
 > `scripts/QFF2026_intel_mac_env_setup.sh`; `source ~/.qff26-openssl-env.sh` first). Every
 > other platform (Linux, Windows, Apple Silicon) installs the prebuilt wheel directly.
 > `platform_A_info.json` records the honest install origin of this machine.
+> **Python interpreter note (all platforms):** the kit supports Python 3.10-3.13 and
+> recommends 3.13. Stock macOS `python3` is Apple CLT 3.9 and is NOT supported - use
+> `./scripts/bootstrap_env.sh` (probes python3.13 -> python3.10, override with
+> `--python /path/to/python3.13`; on Debian/Ubuntu install python3-venv if ensurepip
+> is missing). Linux/Windows judges with a modern python3 are unaffected.
 
 ## T1–T9 (all faults injected on the wire between two real endpoints)
 
