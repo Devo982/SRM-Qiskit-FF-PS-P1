@@ -88,10 +88,9 @@ Run the mandatory T1–T9 security suite from the repository root:
 python scripts/run_security_suite.py
 ```
 
-The launcher provisions missing local identities automatically, then runs the security tests.
+The launcher checks Alice/Bob key pairs and the trust store, repairs missing or inconsistent local test identities automatically, then runs T1–T9. No separate provisioning command is needed. Local provisioning may change `trust_store.json`; do not commit that generated local change.
 
 Expected: `ALL TESTS PASSED: 52/52 detailed checks`.
-
 Results: `results/security_tests.csv` and `results/security_tests_detailed.csv`.
 
 ## Verification
