@@ -1,4 +1,4 @@
-# QFF 2026 Track 5 — SRM-Qiskit-FF-PS-P1 | PS-P1 Quantum-Safe Secure Communication Channel
+# Phase Invaders — PS-P1: Quantum-Safe Secure Communication Channel
 
 **Challenge:** Qiskit Fall Fest 2026 · Track 5 · **Problem Statement PS-P1**
 
@@ -92,7 +92,7 @@ The analysis-package minimums are intentionally not exact pins: PyPI declares Nu
 
 ## Verification
 
-On the recorded local run, the runner printed **`ALL TESTS PASSED: 52/52 detailed checks in 0.56s`**. The duration is measured at runtime and will vary; the stable pass criterion is `ALL TESTS PASSED: 52/52 detailed checks`.
+On the recorded local run, the runner printed **`ALL TESTS PASSED: 52/52 detailed checks in 0.55s`**. The duration is measured at runtime and will vary; the stable pass criterion is `ALL TESTS PASSED: 52/52 detailed checks`.
 
 ## Results
 
