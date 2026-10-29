@@ -8,7 +8,7 @@
 
 ## Quick start
 
-**Supported runtime:** Python 3.11–3.13 (Python 3.13 recommended). Install Python 3.13 once before starting; Python 3.15 is not supported by this repository. The organizer dependency pin `cryptography==50.0.2` must remain unchanged. The setup below uses Python's built-in `venv` and `pip`; `uv` is not required.
+**Supported runtime:** Python 3.13 is the only supported version. Install Python 3.13 once before starting; Python 3.15 is not supported by this repository. The organizer dependency pin `cryptography==50.0.2` must remain unchanged. The setup below uses Python's built-in `venv` and `pip`; `uv` is not required.
 
 ### Fresh clone → install dependencies → run all checks and benchmarks
 
@@ -47,10 +47,10 @@ cd SRM-Qiskit-FF-PS-P1 &&
 python3.13 --version &&
 ( [ ! -d .venv ] || rm -rf .venv ) &&
 python3.13 -m venv .venv &&
-.venv/bin/python -m pip install --upgrade pip &&
-.venv/bin/python -m pip install -r requirements.txt &&
-.venv/bin/python -c "import cryptography; print('cryptography', cryptography.__version__)" &&
-.venv/bin/python scripts/run_reproducible_benchmarks.py --platform-label LOCAL
+.venv/bin/python3.13 -m pip install --upgrade pip &&
+.venv/bin/python3.13 -m pip install -r requirements.txt &&
+.venv/bin/python3.13 -c "import cryptography; print('cryptography', cryptography.__version__)" &&
+.venv/bin/python3.13 scripts/run_reproducible_benchmarks.py --platform-label LOCAL
 ```
 
 The `&&` chain stops if any step fails. **Already cloned the repository?** Start at your existing repository root and skip only `git clone` plus `Set-Location` / `cd`. Run the remaining commands from `py -3.13 --version` or `python3.13 --version` onward. These commands intentionally recreate `.venv`, so an old Python 3.15 environment is not reused; they do not remove source files or benchmark results.
@@ -70,7 +70,7 @@ For later runs in an existing checkout with dependencies installed, use just thi
 **macOS / Linux**
 
 ```bash
-.venv/bin/python scripts/run_reproducible_benchmarks.py --platform-label LOCAL
+.venv/bin/python3.13 scripts/run_reproducible_benchmarks.py --platform-label LOCAL
 ```
 
 ### Install or locate Python 3.13
