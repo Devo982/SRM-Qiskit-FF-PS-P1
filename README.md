@@ -82,11 +82,13 @@ The analysis-package minimums are intentionally not exact pins: PyPI declares Nu
 
 ## Tests
 
+From the repository root, run `python scripts/run_security_suite.py` for the mandatory T1-T9 security battery. The launcher automatically runs `scripts/provision_identities.py` if either local identity or `trust_store.json` is missing or empty; otherwise it skips provisioning. It then runs the existing security-test suite. The generated private identity files are local and must never be committed. On a fresh clone, provisioning regenerates `trust_store.json` to match the new local identities; do not commit that local change.
+
 | Purpose | Command | Expected output / evidence |
 |---|---|---|
 | Environment and primitive smoke tests | `python common/env_check.py` | `READY - environment is correct.` and `platform_A_info.json` |
 | Provision endpoint identities and trust store | `python scripts/provision_identities.py` | local `identities/` files (git-ignored) and updated `trust_store.json` |
-| T1–T9 wire-level security battery | `python -m tests.run_security_tests` | all 52 detailed checks pass; writes `results/security_tests.csv` and `results/security_tests_detailed.csv` |
+| T1–T9 wire-level security battery | `python scripts/run_security_suite.py` | all 52 detailed checks pass; writes `results/security_tests.csv` and `results/security_tests_detailed.csv` |
 | Regression vectors and replay-window rules | `python -m tests.test_regressions` | RFC 5869 vector/oracle and replay-window assertions pass |
 | End-to-end PQC demo | `python -m cli.demo --suite QFF26-PQC-1` | metadata-only handshake, bidirectional transfer and authenticated-close output |
 
