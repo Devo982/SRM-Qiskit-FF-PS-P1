@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # QFF 2026 PS-P1 - interpreter probe + .venv creation
-# Kit contract: Python 3.10-3.13 supported, 3.13 recommended.
+# Kit contract: Python 3.10-3.13 supported, 3.13 recommended; requirements use compatible minimums.
 # Usage:
 #   ./scripts/bootstrap_env.sh                  # probe + create/recreate .venv
 #   ./scripts/bootstrap_env.sh --python PATH    # explicit interpreter override

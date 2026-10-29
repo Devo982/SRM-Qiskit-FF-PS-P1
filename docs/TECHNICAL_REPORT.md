@@ -3,8 +3,9 @@
 **Task:** PS-P1 — Quantum-Safe Secure Communication Channel (Phase 2)
 **Repo:** `Devo982/SRM-Qiskit-FF-PS-P1` · **Track:** 5 — Post-Quantum Cryptography
 **Platform of record:** Intel Mac (x86_64 native), macOS 15.8.2, CPython 3.13.17,
-`cryptography==50.0.2` (kit pin; sdist build against static OpenSSL 3.5.9 — see
-`platform_A_info.json` for the honest install origin).
+`cryptography==50.0.2` (kit pin; see `platform_A_info.json` for the recorded
+install origin). **Supported Python:** 3.10–3.13 (3.13 recommended); analysis
+packages use kit-compatible minimum versions so Python 3.10 can resolve supported releases.
 
 ---
 
@@ -26,16 +27,19 @@ policy, trust-store, signature, and key-confirmation path. The battery asserts
 via public confirmation status only (states, failure categories, payload sizes);
 key material never appears in logs or assertions.
 
-In the 29 October 2026 Platform A run, the full handshake median was 3.173 ms
-for QFF26-PQC-1 and 0.766 ms for QFF26-CLASSICAL-1, from 100 successful
-handshakes per suite. The measured serialized handshake totals were 9,134 B
-and 448 B, respectively. In the separate payload benchmark, 10 MB end-to-end
-throughput was 508.47/503.05 MiB/s (client-to-server/server-to-client) for PQC
-and 565.79/572.45 MiB/s for the classical baseline. Payload measurements also
-record per-call encryption/decryption timings and a 32 B transmitted record
-overhead. All measurements are local and in-process, not network results. This
-is a competition prototype: Section 7 states the assumptions and limitations
-explicitly.
+In the 29 October 2026 Platform A run `20261029T211325Z`, the full handshake
+median was 2.883 ms for QFF26-PQC-1 and 0.738 ms for QFF26-CLASSICAL-1, from
+100 successful handshakes per suite. Their IQRs were 1.236 ms and 0.048 ms;
+p95 values were 5.186 ms and 0.885 ms. The measured serialized handshake totals
+were 9,134 B and 448 B, respectively. In the separate payload benchmark, 10 MB
+end-to-end throughput was 481.85/504.18 MiB/s (client-to-server/server-to-client)
+for PQC and 558.61/556.22 MiB/s for the classical baseline. Median 10 MB
+per-call encryption/decryption times were 7.765455/13.673712 ms for PQC and
+6.504431/10.266675 ms for the classical baseline. Both suites have 32 B of
+transmitted record overhead. All measurements are local and in-process, not
+network results. The associated environment metadata was generated at
+`2026-10-29T21:13:19+00:00` and records `on_battery=false`. This is a competition
+prototype: Section 7 states the assumptions and limitations explicitly.
 
 ## 2. Deliverable-to-requirement map
 
@@ -296,6 +300,9 @@ version u16 (0x0001) | type u8 (0x01 app-data, 0x02 close)
 
 Identities are pinned in `trust_store.json` (committed, public keys only): each
 entry carries a role (`client` / `server`) and one verification key per suite.
+**Authentication is MUTUAL:** the server signs the handshake transcript (`sig_S`)
+and the client also signs the transcript (`sig_C`); neither endpoint is treated as
+server-authenticated-only, and both signature checks are verified by the peer.
 Private keys live only in git-ignored `identities/*.json` (ML-DSA-65 stored as
 its 32-byte seed, restored via `from_seed_bytes`; Ed25519 as raw 32 bytes).
 Trust-store distribution and integrity are out-of-band (Section 7).
@@ -307,6 +314,15 @@ in any handshake field or record byte, substitution of whole fields (rogue
 identity, rogue suite id), replay of records, of full old sessions, and of M1,
 splicing of a genuine old signature into a fresh session, role swap with genuine
 keys, and a rogue endpoint with its own (valid) keypair.
+
+Threat mapping: a **man-in-the-middle (MITM)** attempting to impersonate a peer
+is stopped by pinned identity lookup and role/transcript binding (T6 and T7);
+**record and handshake replay** are stopped by the pre-decryption record window
+and the handshake freshness/transcript checks (T8a–T8c); and a **downgrade**
+attempt is stopped by local suite policy, rejection of unknown suites, and the
+client's no-fallback check for a substituted suite echo (T9a–T9b). These are
+specific prototype tests, not a claim that all deployment-level MITM, replay, or
+downgrade risks have been eliminated.
 
 ### 4.3 Failure taxonomy (typed, fail closed)
 
@@ -407,8 +423,8 @@ mutate window state).
 
 | Suite | Trials | Success / failure | Median | IQR | p95 | Min | Max | c2s bytes | s2c bytes | Total bytes |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `QFF26-PQC-1` | 100 | 100 / 0 | 3.173 ms | 1.157 ms | 5.279 ms | 1.941 ms | 11.943 ms | 4616 | 4518 | 9134 |
-| `QFF26-CLASSICAL-1` | 100 | 100 / 0 | 0.766 ms | 0.080 ms | 0.998 ms | 0.733 ms | 2.222 ms | 225 | 223 | 448 |
+| `QFF26-PQC-1` | 100 | 100 / 0 | 2.883 ms | 1.236 ms | 5.186 ms | 1.830 ms | 7.466 ms | 4616 | 4518 | 9134 |
+| `QFF26-CLASSICAL-1` | 100 | 100 / 0 | 0.738 ms | 0.048 ms | 0.885 ms | 0.707 ms | 2.805 ms | 225 | 223 | 448 |
 
 Measured individual frame lengths:
 
@@ -420,7 +436,14 @@ Measured individual frame lengths:
 The directional totals are M1 + M3 for client-to-server and M2 for
 server-to-client. Raw evidence: `results/tables/handshake_results.csv` (organizer
 columns) and `results/tables/bench_handshake.csv` (includes the M1/M2/M3 breakdown
-and min/max). The recorded run ID is in both files.
+and min/max). The recorded run ID is `20261029T211325Z`. The raw file
+`results/tables/handshake_raw_samples.csv` contains 100 successful timings per suite
+(200 data rows total). The latency figure is generated from these samples and uses
+empirical Q1–Q3 error bars; reported medians/IQR/p95 are read from the organizer CSV.
+
+![Median handshake latency with IQR error bars; n=100 trials, Platform A, local/in-process.](../results/figures/handshake_latency.png)
+
+![Serialized M1/M2/M3 byte counts; n=100 trials, Platform A, local/in-process.](../results/figures/handshake_message_bytes.png)
 
 ### 6.3 Payload encryption/decryption and record overhead
 
@@ -431,12 +454,12 @@ the full captured serialized record frame (header + encrypted payload + GCM tag)
 
 | Suite | Payload | Plaintext bytes | Serialized `ciphertext_bytes` | Transmitted overhead | Trials per operation | Median encrypt | Median decrypt | SHA-256 |
 |---|---|---:|---:|---:|---:|---:|---:|---|
-| PQC | 1 KB | 1024 | 1056 | 32 B | 30 | 0.009304 ms | 0.010462 ms | Match |
-| PQC | 100 KB | 102400 | 102432 | 32 B | 30 | 0.043192 ms | 0.102341 ms | Match |
-| PQC | 10 MB | 10485760 | 10485792 | 32 B | 30 | 7.871472 ms | 12.841740 ms | Match |
-| Classical | 1 KB | 1024 | 1056 | 32 B | 30 | 0.009408 ms | 0.010606 ms | Match |
-| Classical | 100 KB | 102400 | 102432 | 32 B | 30 | 0.048433 ms | 0.107047 ms | Match |
-| Classical | 10 MB | 10485760 | 10485792 | 32 B | 30 | 6.513818 ms | 10.451901 ms | Match |
+| PQC | 1 KB | 1024 | 1056 | 32 B | 30 | 0.009570 ms | 0.010812 ms | Match |
+| PQC | 100 KB | 102400 | 102432 | 32 B | 30 | 0.042872 ms | 0.100847 ms | Match |
+| PQC | 10 MB | 10485760 | 10485792 | 32 B | 30 | 7.765455 ms | 13.673712 ms | Match |
+| Classical | 1 KB | 1024 | 1056 | 32 B | 30 | 0.010516 ms | 0.011709 ms | Match |
+| Classical | 100 KB | 102400 | 102432 | 32 B | 30 | 0.052332 ms | 0.110774 ms | Match |
+| Classical | 10 MB | 10485760 | 10485792 | 32 B | 30 | 6.504431 ms | 10.266675 ms | Match |
 
 **Overhead accounting:** the protocol components are a 12 B derived nonce,
 a 16 B header and a 16 B GCM tag: 44 B combined component accounting. The nonce
@@ -448,16 +471,18 @@ nonce is reported separately and is not counted as an on-wire byte.
 
 Raw data in the organizer's column layout: `results/tables/payload_results.csv`.
 
+![10 MB payload median encrypt/decrypt operation time; n=30 samples per operation, Platform A, local/in-process.](../results/figures/payload_10mb_timing.png)
+
 ### 6.4 End-to-end payload throughput (median of 15 transfers per direction, MiB/s)
 
 | Suite | Payload | Plaintext bytes | c2s MiB/s | s2c MiB/s |
 |---|---|---:|---:|---:|
-| `QFF26-PQC-1` | 1 KB | 1024 | 40.23 | 41.67 |
-| `QFF26-PQC-1` | 100 KB | 102400 | 692.58 | 692.19 |
-| `QFF26-PQC-1` | 10 MB | 10485760 | 508.47 | 503.05 |
-| `QFF26-CLASSICAL-1` | 1 KB | 1024 | 35.69 | 40.49 |
-| `QFF26-CLASSICAL-1` | 100 KB | 102400 | 649.80 | 669.44 |
-| `QFF26-CLASSICAL-1` | 10 MB | 10485760 | 565.79 | 572.45 |
+| `QFF26-PQC-1` | 1 KB | 1024 | 36.03 | 40.48 |
+| `QFF26-PQC-1` | 100 KB | 102400 | 632.24 | 681.28 |
+| `QFF26-PQC-1` | 10 MB | 10485760 | 481.85 | 504.18 |
+| `QFF26-CLASSICAL-1` | 1 KB | 1024 | 34.76 | 36.98 |
+| `QFF26-CLASSICAL-1` | 100 KB | 102400 | 620.48 | 653.84 |
+| `QFF26-CLASSICAL-1` | 10 MB | 10485760 | 558.61 | 556.22 |
 
 These throughput measurements use the uninstrumented end-to-end
 `send → wire delivery → recv` path; the per-call timing wrappers are not active
@@ -466,25 +491,39 @@ explicitly use MiB/s).
 
 ### 6.5 Interpretation and limitations
 
-- **Handshake cost and size:** in this run the PQC median handshake was about
-  4.14 times the classical baseline (3.173 ms versus 0.766 ms). The measured
-  handshake was about 20.4 times larger (9134 B versus 448 B). These are observed
-  results for this implementation and platform, not universal performance
-  guarantees.
+- **Handshake cost and size:** the current CSVs show a PQC median handshake
+  about 3.9 times the classical baseline (2.883 ms versus 0.738 ms) and a total
+  handshake about 20.4 times larger (9,134 B versus 448 B). The ML-KEM-768
+  encapsulation material and ML-DSA-65 signatures account for most of the added
+  handshake bytes. These are results from this implementation and Platform A,
+  not universal performance guarantees.
 - **Post-handshake record path:** both suites use the same AES-256-GCM record
-  layer. The 10 MB throughput values were 508.47/503.05 MiB/s for PQC and
-  565.79/572.45 MiB/s for the classical suite in this run. These single-machine
-  figures are of the same order of magnitude, but they do not justify claiming
-  identical throughput or attributing every difference to the suite alone.
+  layer and have identical 32 B transmitted overhead (a 16 B header plus a 16 B
+  GCM tag). The derived 12 B nonce is not transmitted. In the current
+  `payload_results.csv`, 10 MB per-call median encrypt/decrypt times are
+  7.765455/13.673712 ms for PQC and 6.504431/10.266675 ms for the classical
+  baseline (30 samples per operation). Thus the per-call medians are higher for
+  PQC in this run, by about 19.4% for encrypt and 33.2% for decrypt.
+- **End-to-end throughput trade-off:** in `bench_payload.csv`, 10 MB throughput
+  is 481.85 MiB/s client-to-server and 504.18 MiB/s server-to-client for PQC,
+  compared with 558.61 and 556.22 MiB/s for the classical baseline. Relative to
+  that baseline, PQC throughput is about 13.7% lower client-to-server and 9.4%
+  lower server-to-client in this run. The per-call timing pass and separate
+  uninstrumented end-to-end throughput pass measure different code paths, so
+  their values should not be treated as interchangeable. These are local,
+  run-specific observations, not a general performance prediction.
 - **Small records:** the 32 B transmitted overhead is 3.125% of a 1 KB plaintext
   record, about 0.0313% of 100 KB and about 0.0003% of 10 MB. For a single-record
   payload, fixed per-call work and framing are proportionally more visible for
   small payloads. The implementation does not chunk or fragment a payload.
 - **Timing interpretation:** no warm-up handshake is discarded, and all runs
-  are local/in-process on one Intel Mac. Results can vary with process load,
-  library initialization, buffer copies and runtime effects. They should not be
-  presented as network latency or as an independent cryptographic audit.
-
+  are local/in-process on one Intel Mac. The matching `platform_A_info.json` was
+  generated at `2026-10-29T21:13:19+00:00` and records `on_battery=false`; the
+  environment check therefore observed AC power at metadata collection time.
+  This does not turn the measurements into network results or eliminate timing
+  variability from process load, library initialization, buffer copies and
+  runtime effects. The numbers should not be presented as network latency or an
+  independent cryptographic audit.
 ## 7. Prototype status and assumptions
 
 This is a competition prototype built in a 24-hour sprint, not a production
@@ -530,38 +569,86 @@ independently audited. Explicit assumptions and limitations:
 
 ## 8. Reproduction guide
 
-Clean clone on any platform with Python 3.10–3.13 (validated on 3.13.17):
+Clean clone on Python 3.10–3.13 (3.13 recommended). The analysis dependencies
+use minimum compatible versions so that Python 3.10 resolves supported releases;
+`cryptography==50.0.2` remains the exact organizer pin.
 
 ```bash
 git clone https://github.com/Devo982/SRM-Qiskit-FF-PS-P1.git
 cd SRM-Qiskit-FF-PS-P1
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+
+# Portable setup (Windows, macOS and Linux)
+python -m venv .venv
+# Windows PowerShell/cmd: run the Windows activation line below instead.
+.venv\Scripts\activate
+# macOS/Linux: run this line instead of the Windows activation line.
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 
 python common/env_check.py              # -> READY - environment is correct.
 python scripts/provision_identities.py  # identities/ (git-ignored) + trust_store.json
-python -m tests.run_security_tests      # -> ALL TESTS PASSED: 52/52 checks
+python -m tests.run_security_tests      # 52 detailed checks, all expected PASS
 python -m tests.test_regressions        # RFC 5869 vectors + replay-window regression
 python -m cli.demo --suite QFF26-PQC-1  # metadata-only end-to-end demo
 python bench/bench_handshake.py --runs 100
 python bench/bench_payload.py --repeats 15
+python scripts/make_figures.py          # reads only results/tables/*.csv
 ```
 
+`bench/bench_handshake.py --runs 100` writes `handshake_results.csv`,
+`bench_handshake.csv`, and successful per-trial rows in
+`handshake_raw_samples.csv`. `bench/bench_payload.py --repeats 15` writes
+`payload_results.csv` and `bench_payload.csv`. `scripts/make_figures.py` reads
+only CSVs under `results/tables/` and writes the three PNGs under
+`results/figures/`. Run commands in this order on Platform A; all benchmark
+measurements are local/in-process, not network measurements.
+
 Expected artifacts after reproduction: `results/security_tests.csv`,
-`results/security_tests_detailed.csv`,
-`results/tables/handshake_results.csv`, `results/tables/bench_handshake.csv`,
-`results/tables/payload_results.csv`, `results/tables/bench_payload.csv`,
-`data/payloads/payload_*.bin` and `payload_sha256.txt` (payload binaries are
-generated locally and git-ignored), and `platform_A_info.json`.
+`results/security_tests_detailed.csv`, `results/tables/handshake_results.csv`,
+`results/tables/bench_handshake.csv`, `results/tables/handshake_raw_samples.csv`,
+`results/tables/payload_results.csv`, `results/tables/bench_payload.csv`, the
+three PNGs under `results/figures/`, `data/payloads/payload_*.bin` and
+`payload_sha256.txt` (payload binaries are generated locally and git-ignored),
+and `platform_A_info.json`.
 
-> **Intel macOS note.** `cryptography==50.0.2` publishes no macOS x86_64 wheel;
-> on Intel Macs pip builds it from sdist against a local static OpenSSL —
-> `scripts/QFF2026_intel_mac_env_setup.sh` builds OpenSSL 3.5.9 (no-shared) into
-> `~/.local/openssl-3.5.9` and `~/.qff26-openssl-env.sh` exports
-> `OPENSSL_DIR`/`OPENSSL_LIB_DIR`/`OPENSSL_INCLUDE_DIR`/`OPENSSL_STATIC=1`.
-> Every other platform installs the prebuilt wheel directly.
+> **Windows activation:** the Windows line is `.venv\Scripts\activate`; do not
+> run the Bash setup helper on Windows. On macOS/Linux use `source .venv/bin/activate`.
+>
+> **Intel macOS note.** `cryptography==50.0.2` is the fixed organizer pin. On
+> Intel Macs pip may need a source build against local static OpenSSL; consult
+> `scripts/QFF2026_intel_mac_env_setup.sh` and source `~/.qff26-openssl-env.sh`
+> before installing if a compatible wheel is unavailable. The environment check
+> records `install_origin` honestly in `platform_A_info.json`.
 
-## 9. Artifact integrity
+## 9. Recommendations and next improvements
+
+1. **Evaluate a hybrid ML-KEM-768 + X25519 key exchange.** Combine the independent
+   shared secrets with a reviewed, domain-separated combiner and test both classical
+   and post-quantum failure behavior before changing the wire protocol.
+2. **Automate rekey/renegotiation after `SessionExhausted`.** Define a state-machine
+   transition, policy for outstanding records and failure recovery, and add explicit
+   regression and wire-level tests before claiming automated rekeying.
+3. **Run a real two-machine network test and measure Platforms B and D.** Record
+   network transport, RTT, packet loss, hardware, software versions and repeated
+   trials separately from the existing local/in-process Platform A CSVs.
+4. **Improve key handling beyond best-effort zeroization.** Assess memory-safe native
+   secret buffers or a suitable OS-backed key facility, document copies and lifetimes,
+   and test destruction semantics; Python object wiping alone cannot guarantee erasure.
+5. **Specify trust-store lifecycle.** Add authenticated distribution, versioning,
+   rotation and revocation procedures, including what happens to active sessions when
+   a peer identity is withdrawn.
+6. **Treat handshake bytes as a priority for optimization.** The committed CSVs show
+   a 20.4× total-handshake byte increase (9,134 B versus 448 B); ML-KEM-768 public
+   key/ciphertext material and ML-DSA-65 signatures dominate that increase. Profile
+   actual message components and consider protocol-level size changes only after a
+   security review; the measured record-layer overhead is already the same 32 B in
+   both suites.
+
+This remains a competition prototype, **not production security**. These are
+follow-up engineering recommendations, not claims that the listed improvements have
+already been implemented or validated.
+
+## 10. Artifact integrity
 
 **Committed:** all source (`protocol/`, `tests/`, `cli/`, `bench/`, `scripts/`,
 `common/`), `docs/INTEGRATION_CONTRACT.md`, this report, `README.md`,

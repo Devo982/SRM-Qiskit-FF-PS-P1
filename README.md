@@ -1,94 +1,130 @@
-# QFF 2026 PS-P1 — Quantum-Safe Secure Communication Channel (Phase 2)
+# QFF 2026 Track 5 — Team [TEAM NAME] | PS-P1 Quantum-Safe Secure Communication Channel
 
-Track 5 · Qiskit Fall Fest 2026 · **PS-P1: Quantum-Safe Secure Communication Channel**
+**Challenge:** Qiskit Fall Fest 2026 · Track 5 · **Problem Statement PS-P1**
 
-A hybrid-ready authenticated secure channel with **two complete protocol suites behind ONE
-state machine**, automated wire-level attack testing (T1–T9), and byte-exact official
-payload verification:
+**Technical report:** [docs/TECHNICAL_REPORT.md](docs/TECHNICAL_REPORT.md)
 
-| Suite | KEM | Signature | KDF | AEAD |
-|---|---|---|---|---|
-| `QFF26-PQC-1` | **ML-KEM-768** (FIPS 203) | **ML-DSA-65** (FIPS 204) | HKDF-SHA256 (RFC 5869) | AES-256-GCM |
-| `QFF26-CLASSICAL-1` | X25519 | Ed25519 | HKDF-SHA256 | AES-256-GCM |
+**Integration contract:** [docs/INTEGRATION_CONTRACT.md](docs/INTEGRATION_CONTRACT.md)
 
-Suite selection is **local policy on both endpoints and is never negotiated on the wire** —
-there is no downgrade path. Directional keys (`QFF26 c2s` / `QFF26 s2c` labels preserved and
-strengthened with transcript-hash binding), directional 12 B nonce bases, and an exporter
-secret are derived from a fixed, acyclic schedule: `ss → sig_S → TH2 → PRK → fk → fin_S →
-sig_C → TH3 → fin_C → TH4 → traffic keys`.
+## Team members
 
-## Security properties (full analysis in the technical report)
+| Role | Name | Institution / contact |
+|---|---|---|
+| Team lead | [Fill in] | [Fill in] |
+| Member 2 | [Fill in] | [Fill in] |
+| Member 3 | [Fill in] | [Fill in] |
+| Member 4 (if applicable) | [Fill in or remove row] | [Fill in or remove row] |
 
-- **Mutual authentication** against a pinned trust store (`trust_store.json`). Verification
-  keys never travel on the wire; an unknown identity fails at lookup **before any signature
-  math** (T6). Roles are enforced by trust-store labels and transcript tag positions (T7a).
-- **Canonical TLV transcript** — signatures cover identities, roles, version, suite ids,
-  both nonces, and all exchanged key material; no signature covers itself (T2, T3, T7b).
-- **Replay defenses at both layers**: handshake freshness via client nonce inside `sig_S`
-  plus an `(id_C, nonce_C)` server cache as hygiene (T8b/T8c); record layer via a
-  per-direction sliding window + watermark checked **before decryption** — GCM alone is
-  explicitly documented as NOT a replay defense (T8a).
-- **AES-256-GCM record layer**: 16 B header (always AAD), 32 B total per-record overhead,
-  nonce = nonce_base ⊕ seq (injective; reuse structurally excluded), authenticated close
-  records, session caps → `SessionExhausted`.
-- Fixed verification order `policy → trust lookup → signature → Finished`; every failure is
-  a typed error (`PolicyViolation`, `UntrustedIdentity`, `AuthenticationFailure`,
-  `TranscriptBindingError`, `HandshakeReplayDetected`, `RecordReplayDetected`,
-  `RecordAuthenticationError`, `SessionExhausted`); no code path falls back to a weaker
-  suite; ephemeral secrets are zeroized on terminal states (best effort — prototype note).
+## Summary
 
-## Repository layout
+PS-P1 Phase 2 implements a mutual-authentication secure channel with two suites behind one channel state machine. The post-quantum suite uses ML-KEM-768 (FIPS 203), ML-DSA-65 (FIPS 204), HKDF-SHA256 and AES-256-GCM. The classical comparison baseline uses X25519 and Ed25519 with the same HKDF-SHA256 key schedule and AES-256-GCM record layer. Suite selection is local policy on both endpoints; suite negotiation is not performed on the wire.
 
-```
-common/env_check.py          kit environment contract -> READY + platform_A_info.json
-protocol/                    TLV wire format, suites, key schedule, record layer,
-                             Client/Server state machines, in-memory wire
-cli/                         UX façade (docs/INTEGRATION_CONTRACT.md) + demo
-tests/harness.py             wire-level fault injectors (flip/duplicate/substitute/splice)
-tests/run_security_tests.py  T1–T9 battery -> results/security_tests.csv (organizer summary) + results/security_tests_detailed.csv (52 detailed checks)
-tests/test_regressions.py    RFC 5869 vectors + replay-window regression tests
-bench/                       handshake + payload benchmarks -> results/tables/*.csv
-scripts/provision_identities.py   generates identities/ (git-ignored) + trust_store.json
-docs/INTEGRATION_CONTRACT.md security invariants for the UX layer
-data/payloads/               official payloads (regenerated locally; *.bin not committed)
-Phase One/                   archived Phase 1 submission (untouched)
-```
+The T1–T9 fault-injection battery has 52 detailed checks across the two suites. In Platform A run `20261029T211325Z`, the PQC handshake median is 2.883 ms (IQR 1.236 ms; p95 5.186 ms) and total measured handshake traffic is 9,134 B; the classical baseline median is 0.738 ms (IQR 0.048 ms; p95 0.885 ms) and total handshake traffic is 448 B. Both suites use 32 B transmitted record overhead. Measurements are local/in-process, not network results. The Platform A metadata records `on_battery=false` for this run. All numeric results in the report are drawn from the CSVs under `results/`; rerun `python scripts/make_figures.py` after any new benchmark run.
 
-## Quickstart (judge reproduction path)
+## Setup
 
-Requirements: Python **3.10–3.13** (validated on 3.13.17), pip/uv. `cryptography==50.0.2`
-is the kit pin and must not change.
+Requirements: Python 3.10–3.13 (3.13 recommended) and pip. Analysis dependencies use minimum compatible versions so that Python 3.10 remains resolvable. `cryptography==50.0.2` is the organizer's exact pin and must not be changed.
 
 ```bash
+# 1. Clone the repository and enter it
 git clone https://github.com/Devo982/SRM-Qiskit-FF-PS-P1.git
 cd SRM-Qiskit-FF-PS-P1
-./scripts/bootstrap_env.sh && source .venv/bin/activate      # or: uv venv .venv
-pip install -r requirements.txt
 
-python common/env_check.py                # -> READY - environment is correct.
-python scripts/provision_identities.py    # identities/ + trust_store.json (one command)
-python -m tests.run_security_tests        # T1-T9, single command
-python -m tests.test_regressions          # RFC 5869 vectors + replay-window regression
-python -m cli.demo --suite QFF26-PQC-1    # end-to-end demo (metadata-only output)
-python bench/bench_handshake.py --runs 100 # median / IQR / p95 per suite
-python bench/bench_payload.py --repeats 15 # 1KB / 100KB / 10MB throughput
+# 2. Create a virtual environment
+python -m venv .venv
+
+# 3. Activate it using the command for your shell/platform:
+# Windows PowerShell or cmd:
+.venv\Scripts\activate
+# macOS / Linux (run this instead of the Windows line):
+source .venv/bin/activate
+
+# 4. Install the dependencies
+python -m pip install -r requirements.txt
 ```
 
-Expected: `ALL TESTS PASSED: 52/52 checks` (26 checks × 2 suites) and
-`results/security_tests.csv` (organizer-format nine-row summary) and
-`results/security_tests_detailed.csv` (all 52 individual checks) are written. The test battery asserts via **public confirmation
-status only** (states, failure categories, sizes) — key bytes are never printed.
+Optional Unix/macOS helper: `./scripts/bootstrap_env.sh` probes supported interpreters and creates `.venv`; it is a Bash script, so use the portable `venv` commands above on Windows. On Intel macOS, read the **Intel-Mac note** below before installing `cryptography`.
 
-> **Intel macOS note.** `cryptography==50.0.2` publishes no macOS x86_64 wheel, so on Intel
-> Macs pip builds it from sdist against a local static OpenSSL (see
-> `scripts/QFF2026_intel_mac_env_setup.sh`; `source ~/.qff26-openssl-env.sh` first). Every
-> other platform (Linux, Windows, Apple Silicon) installs the prebuilt wheel directly.
-> `platform_A_info.json` records the honest install origin of this machine.
-> **Python interpreter note (all platforms):** the kit supports Python 3.10-3.13 and
-> recommends 3.13. Stock macOS `python3` is Apple CLT 3.9 and is NOT supported - use
-> `./scripts/bootstrap_env.sh` (probes python3.13 -> python3.10, override with
-> `--python /path/to/python3.13`; on Debian/Ubuntu install python3-venv if ensurepip
-> is missing). Linux/Windows judges with a modern python3 are unaffected.
+## Reproduce principal results
+
+Run the following commands in order after setup, identity provisioning and tests below. Expected runtimes are planning estimates on Platform A; exact wall-clock benchmark duration is not recorded in the CSVs and varies with system load.
+
+| Output table / artifact | Command | Platform A expected runtime |
+|---|---|---|
+| `results/tables/handshake_results.csv` — official handshake summary | `python bench/bench_handshake.py --runs 100` | About 5–15 s for both suites (estimate) |
+| `results/tables/bench_handshake.csv` — handshake detail including M1/M2/M3 bytes | `python bench/bench_handshake.py --runs 100` | Same run as above |
+| `results/tables/payload_results.csv` — encrypt/decrypt timings and serialized overhead | `python bench/bench_payload.py --repeats 15` | About 10–30 s for both suites and all payload sizes (estimate) |
+| `results/tables/bench_payload.csv` — end-to-end throughput | `python bench/bench_payload.py --repeats 15` | Same run as above |
+| `results/figures/*.png` — plots generated only from `results/tables/*.csv` | `python scripts/make_figures.py` | Usually under 5 s (estimate) |
+
+Each benchmark command writes its associated pair of tables. The handshake script also writes `results/tables/handshake_raw_samples.csv` (successful per-trial times, columns `suite,trial,ms`) so median/IQR figures can be reproduced from individual measurements. The current run includes 100 raw handshake timings for each suite in `results/tables/handshake_raw_samples.csv`; the latency figure uses empirical Q1–Q3 from those samples. The aggregate CSV's median/IQR/p95 remain the official rounded summary.
+
+## Platforms used
+
+| Platform | CPU | Cores | RAM | OS |
+|---|---|---|---|---|
+| A (results platform) | Intel(R) Core(TM) i5-8257U CPU @ 1.40GHz | 4 physical / 8 logical | 8.0 GB | macOS 15.8.2, x86_64 |
+| B | Not used | Not used | Not used | Not used |
+| D | Not used | Not used | Not used | Not used |
+
+Run metadata in `platform_A_info.json` was generated at `2026-10-29T21:13:19+00:00` and records `on_battery=false`, so the Platform A environment check observed AC power for this benchmark run. Measurements remain local/in-process; AC power does not make them network measurements or a cross-device performance guarantee.
+
+## Libraries and versions
+
+| Library | Compatible requirement | Version in the current Python 3.13.17 environment |
+|---|---|---|
+| `cryptography` | `==50.0.2` (exact organizer pin) | `50.0.2` |
+| `psutil` | `>=5.9` | `7.2.2` |
+| `numpy` | `>=1.24` | `2.5.4` |
+| `pandas` | `>=2.0` | `3.1.0` |
+| `matplotlib` | `>=3.7` | `3.11.2` |
+
+The analysis-package minimums are intentionally not exact pins: PyPI declares NumPy 2.5.4 as Python >=3.12, and pandas 3.1.0 plus matplotlib 3.11.2 as Python >=3.11. The lower bounds above let pip select compatible releases for Python 3.10 while preserving `cryptography==50.0.2`. The existing Platform A environment used the versions shown in the last column.
+
+## Tests
+
+| Purpose | Command | Expected output / evidence |
+|---|---|---|
+| Environment and primitive smoke tests | `python common/env_check.py` | `READY - environment is correct.` and `platform_A_info.json` |
+| Provision endpoint identities and trust store | `python scripts/provision_identities.py` | local `identities/` files (git-ignored) and updated `trust_store.json` |
+| T1–T9 wire-level security battery | `python -m tests.run_security_tests` | all 52 detailed checks pass; writes `results/security_tests.csv` and `results/security_tests_detailed.csv` |
+| Regression vectors and replay-window rules | `python -m tests.test_regressions` | RFC 5869 vector/oracle and replay-window assertions pass |
+| End-to-end PQC demo | `python -m cli.demo --suite QFF26-PQC-1` | metadata-only handshake, bidirectional transfer and authenticated-close output |
+
+## Verification
+
+Requested verification line: **`ALL TESTS PASSED: 52/52 checks`**. The current test runner's exact format includes the word `detailed` and elapsed time, e.g. `ALL TESTS PASSED: 52/52 detailed checks in <seconds>s`; test logic is unchanged.
+
+## Results
+
+All current committed result files are linked below. Benchmark CSVs are the source of truth for report numbers; do not hand-edit their values.
+
+- [Organizer security summary](results/security_tests.csv)
+- [Detailed T1–T9 checks](results/security_tests_detailed.csv)
+- [Official handshake results](results/tables/handshake_results.csv)
+- [Handshake detail and M1/M2/M3 sizes](results/tables/bench_handshake.csv)
+- [Payload encrypt/decrypt results and record overhead](results/tables/payload_results.csv)
+- [End-to-end payload throughput](results/tables/bench_payload.csv)
+- [Per-trial handshake samples (100 successful timings per suite)](results/tables/handshake_raw_samples.csv)
+- [Handshake latency figure](results/figures/handshake_latency.png)
+- [Handshake message sizes figure](results/figures/handshake_message_bytes.png)
+- [10 MB payload timing figure](results/figures/payload_10mb_timing.png)
+- [Official payload SHA-256 manifest](data/payloads/payload_sha256.txt)
+- [Platform A environment metadata](platform_A_info.json)
+
+## Baseline used
+
+`QFF26-CLASSICAL-1` is the classical comparison baseline: X25519 key exchange and Ed25519 signatures. It uses the **same HKDF-SHA256 key schedule and AES-256-GCM record layer** as `QFF26-PQC-1`. It is a performance/security comparison baseline, not a recommendation to deploy a classical-only suite against a quantum-capable adversary.
+
+## Known limitations
+
+- This is a competition prototype, not a production secure-channel implementation or production security certification.
+- Security tests and performance measurements use a local in-process wire; no two-machine network latency, packet loss, congestion or deployment measurements have been collected.
+- Automatic renegotiation after `SessionExhausted` is not implemented; creating a fresh session requires a new handshake.
+- Python key zeroization is best-effort; Python's object/memory model cannot guarantee complete erasure.
+- Trust-store distribution, integrity, rotation and revocation are out-of-band and not solved by this prototype.
+- It is a single trust domain; denial-of-service resistance and side-channel hardening are out of scope.
+- Payloads are sent as one record; chunking/fragmentation is not implemented.
 
 ## T1–T9 (all faults injected on the wire between two real endpoints)
 
@@ -104,13 +140,28 @@ status only** (states, failure categories, sizes) — key bytes are never printe
 | T8 | (a) app-record replay, (b) full old-session replay, (c) M1 replay with cache | `RecordReplayDetected` / `AuthenticationFailure` / `HandshakeReplayDetected` |
 | T9 | (a) unknown suite_id, (b) echoed suite substituted to the other valid suite | `PolicyViolation` before any crypto; no fallback |
 
-## Prototype status and assumptions
+## Intel-Mac note
 
-This is a competition prototype, not a production library. Stated assumptions: trust-store
-distribution/integrity is out-of-band; the OS CSPRNG is trusted; no side-channel
-hardening; DoS resistance out of scope; single trust domain; identity-key compromise breaks
-future impersonation resistance, not past session confidentiality (fresh KEM keypair per
-session; best-effort zeroization — Python cannot guarantee memory hygiene); single
-in-process wire for tests/benchmarks (the same frames a socket transport would carry);
-auto-renegotiation after `SessionExhausted` is documented but not automated.
+`cryptography==50.0.2` is the organizer's fixed pin. On Intel macOS (x86_64), consult [the Intel Mac environment helper](scripts/QFF2026_intel_mac_env_setup.sh) before installing if pip cannot use a compatible wheel; the helper prepares the static OpenSSL environment documented in the script. The installed origin is recorded honestly in `platform_A_info.json`. Stock macOS `/usr/bin/python3` can be Python 3.9, which is below this repo's Python 3.10 minimum; use a supported interpreter and activate `.venv` before running commands.
 
+## Repository layout
+
+```text
+common/env_check.py              environment contract -> READY + platform_A_info.json
+protocol/                         TLV, suites, key schedule, record layer, state machines
+cli/adapter.py                    UX façade / integration boundary
+cli/demo.py                       metadata-only end-to-end demo
+tests/run_security_tests.py       T1–T9 security checks -> results/security_tests*.csv
+tests/test_regressions.py         RFC 5869 and replay-window regressions
+bench/bench_handshake.py          handshake timing, sizes and raw samples
+bench/bench_payload.py             record timing and end-to-end throughput
+scripts/make_figures.py            CSV-only reproducible figures
+scripts/provision_identities.py   local identities (git-ignored) + public trust store
+scripts/bootstrap_env.sh          optional Bash setup helper
+scripts/QFF2026_intel_mac_env_setup.sh  Intel-Mac OpenSSL setup helper
+docs/TECHNICAL_REPORT.md           full methodology, evidence and interpretation
+docs/INTEGRATION_CONTRACT.md       finalized UX/protocol integration contract
+results/                           committed CSV evidence and figures
+data/payloads/payload_sha256.txt   official payload manifest (payload binaries generated locally)
+Phase One/                        archived Phase 1 submission (large uploaded papers ZIP removed)
+```

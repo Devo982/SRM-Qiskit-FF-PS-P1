@@ -18,6 +18,4 @@ Phase One/results/figures/*
 
 # --- Phase 2 (PS-P1) additions ---
 data/payloads/*.bin
-bench/raw/
 results/logs/
-results/figures/

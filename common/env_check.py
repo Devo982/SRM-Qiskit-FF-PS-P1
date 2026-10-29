@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import platform
+import subprocess
 import sys
 from datetime import datetime, timezone
 from importlib.metadata import version as _dist_version
@@ -29,7 +30,7 @@ def fail(msg: str, hint: str | None = None) -> None:
 
 
 def main() -> None:
-    # 1) Python version (kit: 3.10-3.13, recommends 3.13)
+    # 1) Python version (kit: 3.10-3.13; analysis requirements use compatible minimums)
     v = sys.version_info
     if (v.major, v.minor) not in SUPPORTED_PYTHON:
         fail(f"Python {v.major}.{v.minor} not supported (need 3.10-3.13; kit recommends 3.13)")
@@ -96,7 +97,54 @@ def main() -> None:
     if missing:
         fail(f"missing analysis dependencies: {', '.join(missing)} (install via requirements.txt)")
 
-    # 6) Honest platform provenance for platform_A_info.json
+    # 6) Organizer Platform A fields and honest platform provenance.
+    # psutil is a required analysis dependency, so these measurements are available
+    # after the dependency check above. Missing platform-specific readings remain null.
+    import psutil
+
+    cpu_model = platform.processor().strip() or None
+    generic_cpu_names = {"i386", "x86_64", "AMD64", "arm64", "aarch64"}
+    if cpu_model in generic_cpu_names:
+        cpu_model = None
+    if not cpu_model and platform.system() == "Darwin":
+        try:
+            probe = subprocess.run(
+                ["sysctl", "-n", "machdep.cpu.brand_string"],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
+            cpu_model = probe.stdout.strip() or None
+        except (OSError, subprocess.SubprocessError):
+            cpu_model = None
+
+    cpu_frequency = None
+    try:
+        cpu_frequency = psutil.cpu_freq()
+    except Exception:  # noqa: BLE001
+        cpu_frequency = None
+    cpu_max_mhz = (
+        round(float(cpu_frequency.max), 2)
+        if cpu_frequency is not None and cpu_frequency.max and cpu_frequency.max > 0
+        else None
+    )
+    battery = None
+    try:
+        battery = psutil.sensors_battery()
+    except Exception:  # noqa: BLE001
+        battery = None
+    on_battery = (
+        not battery.power_plugged
+        if battery is not None and battery.power_plugged is not None
+        else None
+    )
+
+    os_name = platform.system()
+    os_version = platform.mac_ver()[0] if os_name == "Darwin" else platform.release()
+    if not os_version:
+        os_version = platform.release()
+
     openssl_txt = None
     try:
         from cryptography.hazmat.backends.openssl import backend
@@ -109,13 +157,22 @@ def main() -> None:
               if is_intel_mac else "prebuilt wheel")
 
     info = {
+        "platform_label": "A",
+        "os": os_name,
+        "os_version": os_version,
+        "machine": platform.machine(),
+        "cpu_model": cpu_model,
+        "physical_cores": psutil.cpu_count(logical=False),
+        "logical_cores": psutil.cpu_count(logical=True),
+        "cpu_max_mhz": cpu_max_mhz,
+        "ram_total_gb": round(psutil.virtual_memory().total / (1024 ** 3), 3),
+        "on_battery": on_battery,
         "generated_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "kit": "Qiskit Fall Fest 2026 - PS-P1 Quantum-Safe Secure Communication Channel",
         "phase": 2,
         "python": {
             "version": platform.python_version(),
             "implementation": platform.python_implementation(),
-            "executable": sys.executable,
         },
         "platform": {
             "system": platform.system(),

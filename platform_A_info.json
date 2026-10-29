@@ -1,11 +1,20 @@
 {
-  "generated_utc": "2026-10-29T09:58:48+00:00",
+  "platform_label": "A",
+  "os": "Darwin",
+  "os_version": "15.8.2",
+  "machine": "x86_64",
+  "cpu_model": "Intel(R) Core(TM) i5-8257U CPU @ 1.40GHz",
+  "physical_cores": 4,
+  "logical_cores": 8,
+  "cpu_max_mhz": 1400.0,
+  "ram_total_gb": 8.0,
+  "on_battery": false,
+  "generated_utc": "2026-10-29T21:13:19+00:00",
   "kit": "Qiskit Fall Fest 2026 - PS-P1 Quantum-Safe Secure Communication Channel",
   "phase": 2,
   "python": {
     "version": "3.13.17",
-    "implementation": "CPython",
-    "executable": "/Users/vasishthire/SRM-Qiskit-FF-PS-P1/.venv-qff26/bin/python"
+    "implementation": "CPython"
   },
   "platform": {
     "system": "Darwin",
@@ -17,7 +26,7 @@
     "cryptography_version": "50.0.2",
     "openssl_runtime": "OpenSSL 3.5.9 29 Sep 2026",
     "install_origin": "sdist source build (no official macOS x86_64 wheel for cryptography 50.0.2); statically linked local OpenSSL - see README platform notes",
-    "pqcrypto_version": "1.0.0",
+    "pqcrypto_version": null,
     "pqcrypto_required_for_PS_P1": false
   },
   "primitives_verified": [

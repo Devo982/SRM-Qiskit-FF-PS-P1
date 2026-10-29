@@ -71,12 +71,13 @@ def bench_suite(
     signature_name: str,
     runs: int,
     run_id: str,
-) -> tuple[dict, dict]:
+) -> tuple[dict, dict, list[dict]]:
     client_sk, client_vk = sig_generate(suite)
     server_sk, server_vk = sig_generate(suite)
     trust = ephemeral_trust(suite, client_vk, server_vk)
 
     samples_ms: list[float] = []
+    raw_sample_rows: list[dict] = []
     observed_sizes: list[tuple[int, int, int]] = []
     failure_count = 0
 
@@ -121,6 +122,11 @@ def bench_suite(
 
             observed_sizes.append((len(m1), len(m2), len(m3)))
             samples_ms.append(elapsed_ms)
+            raw_sample_rows.append({
+                "suite": suite.suite_id,
+                "trial": trial,
+                "ms": round(elapsed_ms, 6),
+            })
 
         except Exception as exc:
             failure_count += 1
@@ -209,7 +215,7 @@ def bench_suite(
         f"c2s={c2s_bytes} B, s2c={s2c_bytes} B, total={total_bytes} B"
     )
 
-    return official_row, supplementary_row
+    return official_row, supplementary_row, raw_sample_rows
 
 
 def main() -> None:
@@ -239,9 +245,10 @@ def main() -> None:
 
     official_rows = []
     supplementary_rows = []
+    raw_sample_rows = []
 
     for suite, mode, kem_name, signature_name in configs:
-        official, supplementary = bench_suite(
+        official, supplementary, raw_samples = bench_suite(
             suite,
             mode,
             kem_name,
@@ -251,6 +258,7 @@ def main() -> None:
         )
         official_rows.append(official)
         supplementary_rows.append(supplementary)
+        raw_sample_rows.extend(raw_samples)
 
     official_fields = [
         "run_id",
@@ -304,10 +312,16 @@ def main() -> None:
         supplementary_rows,
         supplementary_fields,
     )
+    write_csv(
+        REPO_ROOT / "results" / "tables" / "handshake_raw_samples.csv",
+        raw_sample_rows,
+        ["suite", "trial", "ms"],
+    )
 
     print("Measurements are local/in-process, not network measurements.")
     print("Official results: results/tables/handshake_results.csv")
     print("Supplementary results: results/tables/bench_handshake.csv")
+    print("Raw successful-trial timings: results/tables/handshake_raw_samples.csv")
 
 
 if __name__ == "__main__":

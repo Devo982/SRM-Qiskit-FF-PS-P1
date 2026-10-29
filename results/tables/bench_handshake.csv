@@ -1,3 +1,3 @@
 suite,runs,median_ms,iqr_ms,p95_ms,min_ms,max_ms,run_id,platform,mode,kem,signature,success_count,failure_count,m1_bytes,m2_bytes,m3_bytes,client_to_server_bytes,server_to_client_bytes,total_handshake_bytes,local_or_network
-QFF26-PQC-1,100,3.173,1.157,5.279,1.941,11.943,20261029T130940Z,A,PQC,ML-KEM-768,ML-DSA-65,100,0,1265,4518,3351,4616,4518,9134,local
-QFF26-CLASSICAL-1,100,0.766,0.08,0.998,0.733,2.222,20261029T130940Z,A,classical-baseline,X25519,Ed25519,100,0,119,223,106,225,223,448,local
+QFF26-PQC-1,100,2.883,1.236,5.186,1.83,7.466,20261029T211325Z,A,PQC,ML-KEM-768,ML-DSA-65,100,0,1265,4518,3351,4616,4518,9134,local
+QFF26-CLASSICAL-1,100,0.738,0.048,0.885,0.707,2.805,20261029T211325Z,A,classical-baseline,X25519,Ed25519,100,0,119,223,106,225,223,448,local

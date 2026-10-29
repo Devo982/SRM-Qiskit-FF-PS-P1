@@ -1,8 +1,7 @@
 # Integration Contract - UX / Developer-Experience Layer <=> PS-P1 Secure Channel
 
-> Status: **DRAFT v0.1** - security invariants (§2) are final and may be relied on;
-> the API surface (§4) is fixed by protocol design v2 at the naming level and awaits
-> design sign-off before implementation lands.
+> Status: **FINAL v1.0** - security invariants (§2) and the implemented UX-facing
+> API surface (§4) are the integration contract for this repository.
 > Owner: protocol lead (this repo). Consumer: UX/demo team.
 
 ## 1. Purpose
@@ -34,14 +33,15 @@ secrets. Everything the UX layer may do is expressible through the façade in §
 | `QFF26-PQC-1` | ML-KEM-768 (FIPS 203) | ML-DSA-65 (FIPS 204) | HKDF-SHA256 | AES-256-GCM |
 | `QFF26-CLASSICAL-1` | X25519 | Ed25519 | HKDF-SHA256 | AES-256-GCM |
 
-## 4. API surface (naming fixed by design v2; signatures pending sign-off)
+## 4. API surface (implemented)
 
 - `ClientChannel`, `ServerChannel`: one state machine per role,
   `INIT → ... → ESTABLISHED → CLOSED | FAILED(reason)`.
 - Typed failures surfaced to UX: `PolicyViolation`, `UntrustedIdentity`,
   `AuthenticationFailure`, `TranscriptBindingError`, `HandshakeReplayDetected`,
   `RecordReplayDetected`, `RecordAuthenticationError`, `SessionExhausted`.
-- CLI reference adapter: `cli/` (placeholder until the implementation package lands).
+- Implemented façade: [`cli/adapter.py`](../cli/adapter.py) (`SecureChannelFacade`) exposes `open`, `send`, `recv`, `close`, and metadata-only `state`, `failure_category`, and `established` properties.
+- Runnable end-to-end example: [`cli/demo.py`](../cli/demo.py), invoked with `python -m cli.demo --suite QFF26-PQC-1`.
 
 ## 5. Test ownership
 

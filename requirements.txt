@@ -1,19 +1,19 @@
 # QFF 2026 PS-P1 - Phase 2 requirements
-# Python 3.10-3.13 supported (validated on CPython 3.13.17, macOS x86_64).
+# Python 3.10-3.13 supported; analysis packages use kit-compatible minimums.
+# Validated on Platform A with CPython 3.13.17.
 
 # Kit pin - do not change:
 cryptography==50.0.2
 
-# Analysis / benchmarking stack (exact versions of the validated env):
-psutil==7.2.2
-numpy==2.5.4
-pandas==3.1.0
-matplotlib==3.11.2
+# Analysis / benchmarking stack (minimums chosen to keep Python 3.10 support):
+psutil>=5.9
+numpy>=1.24
+pandas>=2.0
+matplotlib>=3.7
 
 # Optional per kit FAQ (pqcrypto is NOT required for PS-P1):
 # pqcrypto==1.0.0
 
-# Platform note (Intel macOS only): cryptography 50.0.2 publishes no macOS
-# x86_64 wheel, so it is built from sdist against a local static OpenSSL 3.x
-# (source ~/.qff26-openssl-env.sh before installing - see README platform
-# notes). Every other platform installs prebuilt wheels directly.
+# Platform note (Intel macOS only): cryptography 50.0.2 may need a source build
+# on Intel macOS; see scripts/QFF2026_intel_mac_env_setup.sh and the Intel-Mac
+# note in README.md. Preserve the organizer's cryptography pin above.
