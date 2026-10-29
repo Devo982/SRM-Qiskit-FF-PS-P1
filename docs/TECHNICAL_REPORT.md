@@ -19,8 +19,8 @@ server-to-client chains derived independently, and one AES-256-GCM record layer.
 Suite selection is a local policy decision on each endpoint; it is never
 negotiated on the wire.
 
-Security is evaluated by a 25-check fault-injection battery (T1–T9), executed
-twice — once per suite — for 50/50 passing checks. Every fault is injected on the
+Security is evaluated by a 26-check fault-injection battery (T1–T9), executed
+twice — once per suite — for 52/52 passing checks. Every fault is injected on the
 bytes between two real endpoints, so every mutation travels the real parse,
 policy, trust-store, signature, and key-confirmation path. The battery asserts
 via public confirmation status only (states, failure categories, payload sizes);
@@ -45,11 +45,11 @@ explicitly.
 | Classical baseline for comparison | Suite `QFF26-CLASSICAL-1` |
 | HKDF-SHA256, direction-separated, explicit | `protocol/keyschedule.py` (vetted `cryptography` HKDF API; RFC 5869 vectors and independent-oracle regression checks) |
 | AES-256-GCM record layer with replay defense | `protocol/records.py` |
-| T1–T9 automated security tests → organizer summary + detailed evidence | `tests/run_security_tests.py` → `results/security_tests.csv` (nine-row organizer summary) and `results/security_tests_detailed.csv` (50 individual checks) |
+| T1–T9 automated security tests → organizer summary + detailed evidence | `tests/run_security_tests.py` → `results/security_tests.csv` (nine-row organizer summary) and `results/security_tests_detailed.csv` (52 individual checks) |
 | 3 official payloads (1 KB / 100 KB / 10 MB) with SHA-256 | `data/payloads/payload_sha256.txt` (manifest committed; `*.bin` regenerated locally) |
 | Benchmarks, ≥10 successful handshakes, median/IQR/p95, measured message sizes, payload timings/overhead | `bench/bench_handshake.py`, `bench/bench_payload.py` → `results/tables/handshake_results.csv`, `bench_handshake.csv`, `payload_results.csv`, `bench_payload.csv` |
 | UX layer with zero key contact | `cli/adapter.py` + invariants I1–I5 in `docs/INTEGRATION_CONTRACT.md` |
-| Reproducible judge path | README setup and quickstart; security battery (50/50) and regression commands |
+| Reproducible judge path | README setup and quickstart; security battery (52/52) and regression commands |
 
 ## 3. Protocol design (v2)
 
@@ -318,7 +318,7 @@ keys, and a rogue endpoint with its own (valid) keypair.
 | `TranscriptBindingError` | strict-parse violation, KEM input reject, record direction mismatch | T5 (header_direction) |
 | `HandshakeReplayDetected` | (id_C, nonce_C) freshness cache hit | T8c |
 | `RecordReplayDetected` | stale/duplicate seq, rejected before decrypt | T8a |
-| `RecordAuthenticationError` | GCM InvalidTag or header/length inconsistency | T4, T5 (gcm_tag, header_version) |
+| `RecordAuthenticationError` | GCM `InvalidTag` wrapped at the record boundary, or structural header/length rejection | T4, T5 (`gcm_tag`, `header_aad`, `header_version`) |
 | `SessionExhausted` | record/sequence cap reached | documented; not fault-injected |
 
 ## 5. T1–T9 wire-level security battery
@@ -330,7 +330,7 @@ keys, and a rogue endpoint with its own (valid) keypair.
 index (c2s #0 = M1, #1 = M3, #2+ = app records; s2c #0 = M2, #1+ = app records)
 and can flip a byte, duplicate, substitute, or splice frames. Assertions use
 public confirmation status only: channel state, `failure_category`, delivery
-flags, and payload equality — never key bytes. The matrix comprises 25 checks per suite × 2 suites = 50 detailed checks. The
+flags, and payload equality — never key bytes. The matrix comprises 26 checks per suite × 2 suites = 52 detailed checks. The
 nine-row organizer-format summary is written to `results/security_tests.csv`; the
 individual checks are retained in `results/security_tests_detailed.csv`. Beyond the battery, `tests/test_regressions.py`
 pins the key schedule to the RFC 5869 Appendix A test vectors and an
@@ -338,7 +338,7 @@ independent oracle, and regression-tests the replay window's
 commit-after-authentication rule (a forged far-ahead-sequence record must not
 mutate window state).
 
-### 5.2 Results (both suites pass identically — 50/50)
+### 5.2 Results (both suites pass identically — 52/52)
 
 | ID | Scenario (all injected on the wire) | Expected | Observed | PQC-1 | CLASSICAL-1 |
 |---|---|---|---|---|---|
@@ -350,8 +350,8 @@ mutate window state).
 | T2 | bit-flip proto_version / suite_id | policy reject before crypto | `PolicyViolation` | PASS | PASS |
 | T2 | bit-flip kem_ct / nonce_S | client aborts, keys never established | `AuthenticationFailure`, established=False | PASS | PASS |
 | T3 | bit-flip sig_S / sig_C | verifier aborts | `AuthenticationFailure` | PASS | PASS |
-| T4 | bit-flip record ciphertext | reject, plaintext withheld | `RecordAuthenticationError`, withheld | PASS | PASS |
-| T5 | bit-flip GCM tag / header version / header direction | typed rejection, plaintext withheld | `RecordAuthenticationError` / `RecordAuthenticationError` / `TranscriptBindingError` | PASS | PASS |
+| T4 | bit-flip record ciphertext | reject with AEAD authentication failure, plaintext withheld | `RecordAuthenticationError` wrapping `InvalidTag` (`__cause__` verified) | PASS | PASS |
+| T5 | bit-flip GCM tag / authenticated header AAD (record type) / header version / header direction | reject, plaintext withheld | GCM tag and authenticated-header mutations: `RecordAuthenticationError` wrapping `InvalidTag`; version: structural `RecordAuthenticationError`; direction: `TranscriptBindingError` before AEAD | PASS | PASS |
 | T6 | attacker identity + own valid key | reject at lookup, before signature math | `UntrustedIdentity` | PASS | PASS |
 | T7a | role swap (server identity initiates as client) | reject at lookup | `UntrustedIdentity` | PASS | PASS |
 | T7b | genuine old sig_S spliced into fresh session | transcript binding rejects | `AuthenticationFailure` | PASS | PASS |
@@ -540,7 +540,7 @@ pip install -r requirements.txt
 
 python common/env_check.py              # -> READY - environment is correct.
 python scripts/provision_identities.py  # identities/ (git-ignored) + trust_store.json
-python -m tests.run_security_tests      # -> ALL TESTS PASSED: 50/50 checks
+python -m tests.run_security_tests      # -> ALL TESTS PASSED: 52/52 checks
 python -m tests.test_regressions        # RFC 5869 vectors + replay-window regression
 python -m cli.demo --suite QFF26-PQC-1  # metadata-only end-to-end demo
 python bench/bench_handshake.py --runs 100

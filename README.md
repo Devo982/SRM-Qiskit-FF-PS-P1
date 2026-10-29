@@ -45,7 +45,7 @@ protocol/                    TLV wire format, suites, key schedule, record layer
                              Client/Server state machines, in-memory wire
 cli/                         UX façade (docs/INTEGRATION_CONTRACT.md) + demo
 tests/harness.py             wire-level fault injectors (flip/duplicate/substitute/splice)
-tests/run_security_tests.py  T1–T9 battery -> results/security_tests.csv (organizer summary) + results/security_tests_detailed.csv (50 detailed checks)
+tests/run_security_tests.py  T1–T9 battery -> results/security_tests.csv (organizer summary) + results/security_tests_detailed.csv (52 detailed checks)
 tests/test_regressions.py    RFC 5869 vectors + replay-window regression tests
 bench/                       handshake + payload benchmarks -> results/tables/*.csv
 scripts/provision_identities.py   generates identities/ (git-ignored) + trust_store.json
@@ -74,9 +74,9 @@ python bench/bench_handshake.py --runs 100 # median / IQR / p95 per suite
 python bench/bench_payload.py --repeats 15 # 1KB / 100KB / 10MB throughput
 ```
 
-Expected: `ALL TESTS PASSED: 50/50 checks` (25 checks × 2 suites) and
+Expected: `ALL TESTS PASSED: 52/52 checks` (26 checks × 2 suites) and
 `results/security_tests.csv` (organizer-format nine-row summary) and
-`results/security_tests_detailed.csv` (all 50 individual checks) are written. The test battery asserts via **public confirmation
+`results/security_tests_detailed.csv` (all 52 individual checks) are written. The test battery asserts via **public confirmation
 status only** (states, failure categories, sizes) — key bytes are never printed.
 
 > **Intel macOS note.** `cryptography==50.0.2` publishes no macOS x86_64 wheel, so on Intel
@@ -97,8 +97,8 @@ status only** (states, failure categories, sizes) — key bytes are never printe
 | T1 | honest handshake; 3 official payloads (1KB/100KB/10MB) both directions; byte + SHA-256 vs committed `payload_sha256.txt`; authenticated close | success, ESTABLISHED, 6/6 verified |
 | T2 | parametrized bit-flips: kem_pk_C, kem_ct, nonce_C, nonce_S, id_C, id_S, version, suite_id | abort at the step that owns the field; keys never established |
 | T3 | bit-flip sig_S / sig_C | `AuthenticationFailure` |
-| T4 | bit-flip record ciphertext | `RecordAuthenticationError`, plaintext withheld |
-| T5 | bit-flip GCM tag / header (AAD, direction) | typed rejection before/with decryption failure |
+| T4 | bit-flip record ciphertext | `RecordAuthenticationError` wrapping `InvalidTag`; plaintext withheld |
+| T5 | GCM tag / authenticated header-AAD tampering, plus version/direction checks | GCM tampering wraps `InvalidTag`; malformed version/direction rejected before AEAD |
 | T6 | attacker identity + own valid key | `UntrustedIdentity` at lookup, before signature math |
 | T7 | (a) role swap with genuine key, (b) genuine old sig_S spliced into a fresh session | transcript/identity binding rejects both |
 | T8 | (a) app-record replay, (b) full old-session replay, (c) M1 replay with cache | `RecordReplayDetected` / `AuthenticationFailure` / `HandshakeReplayDetected` |

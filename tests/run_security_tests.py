@@ -29,6 +29,8 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from common.official_payloads import PAYLOADS, ensure_payloads  # noqa: E402
+from cryptography.exceptions import InvalidTag
+from protocol.errors import RecordAuthenticationError
 from protocol import records as rec  # noqa: E402
 from protocol.channels import ClientChannel, ServerChannel  # noqa: E402
 from protocol.suites import (  # noqa: E402
@@ -218,28 +220,113 @@ def _mk(suite, trust, a_sk, b_sk, **kw):
 def t4_t5(suite, trust, a_sk, b_sk) -> None:
     sid = suite.suite_id
     cases = [
-        ("T4", "record_ct", lambda i: flip_record_byte(rec.HEADER_LEN),
-         "server", "RecordAuthenticationError"),
-        ("T5", "gcm_tag", lambda i: flip_record_byte(-1),
-         "server", "RecordAuthenticationError"),
-        ("T5", "header_version", lambda i: flip_record_byte(0),
-         "server", "RecordAuthenticationError"),
-        ("T5", "header_direction", lambda i: flip_record_byte(3),
-         "server", "TranscriptBindingError"),
+        (
+            "T4", "record_ct",
+            lambda i: flip_record_byte(rec.HEADER_LEN),
+            "RecordAuthenticationError", "InvalidTag",
+        ),
+        (
+            "T5", "gcm_tag",
+            lambda i: flip_record_byte(-1),
+            "RecordAuthenticationError", "InvalidTag",
+        ),
+        (
+            "T5", "header_aad",
+            # Byte 2 is the record-type field: this preserves structurally
+            # valid version/direction/length fields but changes authenticated AAD.
+            lambda i: flip_record_byte(2),
+            "RecordAuthenticationError", "InvalidTag",
+        ),
+        (
+            "T5", "header_version",
+            lambda i: flip_record_byte(0),
+            "RecordAuthenticationError", "none",
+        ),
+        (
+            "T5", "header_direction",
+            lambda i: flip_record_byte(3),
+            "TranscriptBindingError", "before-aead",
+        ),
     ]
-    for tid, label, fault, side, expected in cases:
+
+    for tid, label, fault, expected, expected_cause in cases:
         client, server, wire = _mk(suite, trust, a_sk, b_sk)
         run_handshake(client, server, wire)
-        idx = wire.counts["c2s"]  # next app record index (dynamic)
+
+        # Record sequence numbers follow handshake frames, so use the
+        # next actual c2s wire index.
+        idx = wire.counts["c2s"]
         wire.add_fault("c2s", idx, fault(idx))
         client.send(b"tamper-test")
-        wire.pump(client, server)
+
+        observed_causes = []
+        original_open_record = rec.open_record
+
+        def observing_open_record(*args, **kwargs):
+            try:
+                return original_open_record(*args, **kwargs)
+            except RecordAuthenticationError as exc:
+                cause = exc.__cause__
+                if isinstance(cause, InvalidTag):
+                    observed_causes.append("InvalidTag")
+                elif cause is None:
+                    observed_causes.append(None)
+                else:
+                    observed_causes.append(type(cause).__name__)
+                raise
+
+        # Observe the real protocol path, then restore the original function
+        # even if delivery fails.
+        rec.open_record = observing_open_record
+        try:
+            wire.pump(client, server)
+        finally:
+            rec.open_record = original_open_record
+
         cat = server.failure_category or f"no-failure(state={server.state})"
         withheld = server.recv() is None
-        ok = server.failure_category == expected and withheld
-        check(tid, label, sid, f"record tamper ({label}) rejected, plaintext withheld",
-              f"server:{expected},plaintext-withheld",
-              f"server:{cat},withheld={withheld}", ok, server.failure_detail or "")
+
+        if expected_cause == "InvalidTag":
+            cause_ok = observed_causes == ["InvalidTag"]
+            cause_text = (
+                f"underlying_cause={observed_causes[0]}"
+                if observed_causes else "underlying_cause=missing"
+            )
+            expected_text = (
+                f"server:{expected}(cause=InvalidTag),plaintext-withheld"
+            )
+        elif expected_cause == "none":
+            cause_ok = observed_causes == [None]
+            cause_text = f"underlying_cause={observed_causes}"
+            expected_text = (
+                f"server:{expected},plaintext-withheld "
+                "(structural rejection before AEAD)"
+            )
+        else:
+            cause_ok = observed_causes == []
+            cause_text = "AEAD=not-reached"
+            expected_text = (
+                f"server:{expected},plaintext-withheld "
+                "(direction check before AEAD)"
+            )
+
+        ok = (
+            server.failure_category == expected
+            and withheld
+            and cause_ok
+        )
+
+        scenario = (
+            f"record tamper ({label}) rejected, plaintext withheld; "
+            f"{cause_text}"
+        )
+        check(
+            tid, label, sid, scenario,
+            expected_text,
+            f"server:{cat},withheld={withheld},{cause_text}",
+            ok,
+            server.failure_detail or "",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -444,12 +531,14 @@ def write_csv() -> Path:
         ),
         "T3": "All 4 signature-tampering checks were rejected.",
         "T4": (
-            "Both suites rejected modified record ciphertext and withheld "
-            "plaintext."
+            "Both suites observed underlying InvalidTag from AES-GCM, "
+            "wrapped as RecordAuthenticationError; plaintext was withheld."
         ),
         "T5": (
-            "All 6 tag/header tampering checks were rejected; plaintext "
-            "was withheld."
+            "GCM tag and authenticated-header mutations produced "
+            "InvalidTag, wrapped as RecordAuthenticationError; malformed "
+            "version/direction fields were rejected before AEAD, with "
+            "plaintext withheld."
         ),
         "T6": (
             "Both suites rejected the untrusted attacker identity at "
@@ -477,7 +566,7 @@ def write_csv() -> Path:
         },
         "T3": {"sig_S", "sig_C"},
         "T4": {"record_ct"},
-        "T5": {"gcm_tag", "header_version", "header_direction"},
+        "T5": {"gcm_tag", "header_aad", "header_version", "header_direction"},
         "T6": {"attacker-id"},
         "T7": {"a-role-swap", "b-sig-splice"},
         "T8": {
@@ -612,7 +701,7 @@ def main() -> None:
     )
     summary_structure_ok = (
         actual_summary_ids == expected_summary_ids
-        and len(ROWS) == 50
+        and len(ROWS) == 52
         and not unexpected_detail_ids
     )
     coverage_failures = [
