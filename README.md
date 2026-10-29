@@ -1,28 +1,47 @@
-# QFF 2026 Track 5 — SRM-Qiskit-FF-PS-P1 | PS-P1 Quantum-Safe Secure Communication Channel
+# QFF 2026 Track 5 — SRM-Qiskit-FF-PS-P1
 
-**Challenge:** Qiskit Fall Fest 2026 · Track 5 · **Problem Statement PS-P1**
+**Problem statement:** PS-P1 — Quantum-Safe Secure Communication Channel
+**Challenge:** Qiskit Fall Fest 2026 · Track 5
 
-**Technical report:** [docs/TECHNICAL_REPORT.md](docs/TECHNICAL_REPORT.md)
+- **Technical report:** [docs/TECHNICAL_REPORT.md](docs/TECHNICAL_REPORT.md)
+- **Integration contract:** [docs/INTEGRATION_CONTRACT.md](docs/INTEGRATION_CONTRACT.md)
 
-**Integration contract:** [docs/INTEGRATION_CONTRACT.md](docs/INTEGRATION_CONTRACT.md)
+## Quick start
 
-## Team members and submission contact
+This repository supports **Python 3.11–3.13**; Python 3.13 is recommended. The organizer's dependency pin **`cryptography==50.0.2` must remain unchanged**. Setup uses Python's built-in `venv` and `pip`; `uv` is optional.
 
-| Role | Name | Contact |
-|---|---|---|
-| Primary repository contact | Vasisht Hire | This repository: [Devo982/SRM-Qiskit-FF-PS-P1](https://github.com/Devo982/SRM-Qiskit-FF-PS-P1) |
+### After installing dependencies: run the whole validation and benchmark
 
-The supplied repository snapshot did not identify the complete registered team roster. Add the actual names and contacts of all other registered members here before the final submission; no teammate names have been inferred or invented for this README.
+This is the **single recommended command** for teammates and organizers. It runs the environment check, mandatory T1–T9 security suite, both handshake benchmarks, all three official payload sizes, SHA-256 checks, and figure generation. It creates a new timestamped evidence bundle instead of overwriting the committed Platform A results.
 
-## Quick start (Windows, macOS, and Linux)
+**Windows (PowerShell)**
 
-**This section is the complete setup path; `uv` is not required.** The environment checker currently supports **Python 3.11, 3.12, and 3.13**; Python 3.13 is recommended. Python 3.15 is not accepted by this repository yet. Installing dependencies into a Python 3.15 environment will not fix the version check: create `.venv` with an explicitly supported interpreter as shown below. The fixed organizer dependency `cryptography==50.0.2` must not be changed.
+```powershell
+.\.venv\Scripts\python.exe scripts/run_reproducible_benchmarks.py --platform-label LOCAL
+```
 
-You need Git, one supported Python interpreter, and internet access to install dependencies. If you already cloned the repository, skip `git clone` and run the commands from that checkout's root directory.
+**macOS / Linux**
 
-### 1. Install or locate a supported Python version
+```bash
+.venv/bin/python scripts/run_reproducible_benchmarks.py --platform-label LOCAL
+```
 
-Do **not** assume that the unversioned `python`, `python3`, or `py -3` command chooses a compatible version. Check for Python 3.13 explicitly.
+Success ends with `Manifest status: passed` and prints the evidence directory and ZIP path under `results/runs/`. Use `LOCAL` for a teammate/organizer machine. Use `A` only on the designated Platform A machine. `LOCAL` is not the official constrained Platform B profile.
+
+### Full setup from a fresh clone
+
+#### 1. Clone the repository
+
+```bash
+git clone https://github.com/Devo982/SRM-Qiskit-FF-PS-P1.git
+cd SRM-Qiskit-FF-PS-P1
+```
+
+Already have a clone? Open a terminal in that repository's root and continue.
+
+#### 2. Install or locate Python 3.13
+
+Use the version-specific executable. Do not assume `python`, `python3`, or `py` automatically selects a supported version.
 
 **Windows (PowerShell)**
 
@@ -31,15 +50,15 @@ py -0p
 py -3.13 --version
 ```
 
-If `py -3.13` reports that the version is not installed, download a Python **3.13.x Windows installer** from [python.org's Windows downloads](https://www.python.org/downloads/windows/). Install it, leave the Python Launcher enabled, open a new PowerShell window, and verify `py -3.13 --version` reports `Python 3.13.x`. Python 3.12 or 3.11 can be selected using `py -3.12` or `py -3.11` if needed.
+If Python 3.13 is missing, install a Python 3.13.x release from [Python's Windows downloads](https://www.python.org/downloads/windows/), enable the Python Launcher, open a new PowerShell window, and repeat `py -3.13 --version`. Python 3.12 or 3.11 may also be used with the matching launcher command.
 
-**macOS**
+**macOS (Intel or Apple Silicon)**
 
 ```bash
 python3.13 --version
 ```
 
-If the command is not found, install a Python **3.13.x macOS installer** from [python.org's macOS downloads](https://www.python.org/downloads/macos/), then open a new Terminal window and repeat the version check. This applies to Intel and Apple Silicon Macs. Do not use an older system Python or the unversioned `python3` command unless you have verified its version.
+If missing, install a Python 3.13.x release from [Python's macOS downloads](https://www.python.org/downloads/macos/) and open a new Terminal window. Use the versioned `python3.13` command for the following setup.
 
 **Linux**
 
@@ -48,18 +67,11 @@ command -v python3.13
 python3.13 --version
 ```
 
-If Python 3.13 is missing, install `python3.13` and its `venv` support from your Linux distribution's supported package source. Package names and availability differ by distribution; see the [official Python Unix/Linux documentation](https://docs.python.org/3/using/unix.html) for platform guidance. On Debian/Ubuntu-based systems, the package providing virtual environments may be named `python3.13-venv` when the distribution provides Python 3.13. If your distribution does not provide it, use an approved Python 3.13 installation method for that distribution. Do not replace or modify the system Python.
+If missing, install Python 3.13 and its `venv` support through your distribution's supported package source. Package names vary by distribution; see the [official Python Unix/Linux documentation](https://docs.python.org/3/using/unix.html). Do not replace the operating system's system Python.
 
-### 2. Clone the repository (new checkout only)
+#### 3. Recreate the virtual environment and install dependencies
 
-```bash
-git clone https://github.com/Devo982/SRM-Qiskit-FF-PS-P1.git
-cd SRM-Qiskit-FF-PS-P1
-```
-
-If you already have the repository, `cd` to its root instead. The next commands intentionally recreate `.venv` so a previously created Python 3.15 environment cannot silently be reused. They remove **only the generated `.venv` directory**, not source files or results.
-
-### 3. Create a clean environment and install the pinned dependencies
+These commands remove and recreate **only the generated `.venv` directory** to prevent an old environment (for example, one built with Python 3.15) from being reused. Run them from the repository root.
 
 **Windows (PowerShell)**
 
@@ -73,7 +85,7 @@ py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -c "import cryptography; print('cryptography', cryptography.__version__)"
 ```
 
-**macOS and Linux (Bash/Zsh)**
+**macOS / Linux (Bash or Zsh)**
 
 ```bash
 python3.13 --version
@@ -85,191 +97,168 @@ python3.13 -m venv .venv
 .venv/bin/python -c "import cryptography; print('cryptography', cryptography.__version__)"
 ```
 
-Expected checks: Python prints `3.13.x` and cryptography prints `50.0.2`. If using Python 3.12 or 3.11, replace `py -3.13` with `py -3.12`/`py -3.11` on Windows, or `python3.13` with `python3.12`/`python3.11` on macOS/Linux consistently in the environment-creation command. The virtual environment's `python` then keeps using the chosen version.
+Expected: Python `3.13.x` and `cryptography 50.0.2`. Python 3.12 or 3.11 can be used instead by consistently replacing the version-specific interpreter command in the applicable setup commands.
 
-### 4. Run validation and the full reproducibility workflow
+## What the one-command run produces
 
-Windows (PowerShell):
+Each run creates a unique directory and matching ZIP in `results/runs/`. The bundle includes:
 
-```powershell
-.\.venv\Scripts\python.exe scripts/run_security_suite.py
-.\.venv\Scripts\python.exe -m tests.test_regressions
-.\.venv\Scripts\python.exe scripts/run_reproducible_benchmarks.py --platform-label LOCAL
-```
+- OS, CPU, memory, Python and dependency metadata;
+- exact command logs and the Git revision recorded for the run;
+- T1–T9 result snapshots;
+- PQC and classical handshake summary CSVs and raw successful-trial timings;
+- results for the official 1 KB, 100 KB and 10 MB payloads, including SHA-256 validation;
+- figures rendered from that run's own CSVs;
+- a manifest and SHA-256 hashes for bundle artifacts.
 
-macOS/Linux:
+Default benchmark settings are 100 handshake trials per suite and 15 bidirectional rounds per payload and suite. The runner supports `--handshake-runs` and `--payload-repeats` when longer or shorter trials are needed. Timings are machine-dependent; reproducibility means the same procedure, checks, input payloads and evidence structure—not identical timing numbers across machines. The measurements in this project are **local/in-process, not real-network measurements**.
 
-```bash
-.venv/bin/python scripts/run_security_suite.py
-.venv/bin/python -m tests.test_regressions
-.venv/bin/python scripts/run_reproducible_benchmarks.py --platform-label LOCAL
-```
+The runner writes its benchmark artifacts inside each run bundle. It does not use the committed `results/tables/*.csv`, `results/figures/*.png`, or root `platform_A_info.json` as output targets. Run bundles are ignored by Git so local measurements do not accidentally replace the submitted Platform A evidence.
 
-For the all-in-one benchmark, the expected final status is `Manifest status: passed`. It runs the environment check, T1–T9, both handshake suites, the three official payloads in both directions, and figure generation. Each invocation creates a distinct run directory and ZIP under `results/runs/`. Use `--platform-label A` only on the designated Platform A machine. Use `LOCAL` on a teammate/organizer laptop; this is not the constrained Platform B profile.
+## Security-only and diagnostic commands
 
-**If the error says `Python 3.15 not supported`:** the `.venv` still uses Python 3.15. Re-run Step 1 to install/find Python 3.13, then Step 3 exactly from the repository root. Do not edit the environment check to bypass the guard and do not merely reinstall packages in the old environment.
+The full benchmark command above is the recommended path. For diagnosis, these individual commands are also available from the repository root.
 
-### What the security launcher does
-
-`scripts/run_security_suite.py` is the security-only one-command entry point. It checks that Alice/Bob test identity key pairs and `trust_store.json` are consistent, repairs missing or inconsistent local test identities when needed, and then runs T1–T9. A separate provisioning command is not required. The stable pass criterion is **`ALL TESTS PASSED: 52/52 detailed checks`**; elapsed time varies by machine.
-
-The identities are local test material. Provisioning may regenerate `trust_store.json`; do not commit that generated local change. `common/env_check.py` writes `platform_A_info.json` by default; if you run it on a different machine for troubleshooting, do not commit that file as though it were Platform A metadata. The security suite also refreshes test-result CSVs, so check `git status --short` after running commands and do not commit generated results unless you intentionally regenerated and reviewed the evidence.
-
-### One-command reproducibility run (recommended for organizers and teammates)
-
-After installing dependencies, run this single command to validate the environment, run T1–T9, benchmark both suites, validate the three official payloads, and generate figures. Use `LOCAL` for an additional teammate/organizer laptop that is not the designated Platform A machine. Use `A` only on the designated Platform A machine whose results are being submitted. Do not label an ordinary teammate laptop as Platform B: the problem statement defines Platform B as a constrained profile (1 CPU core, single-threaded libraries and 128 MB memory budget).
-
-Windows PowerShell:
-
-```powershell
-.\.venv\Scripts\python.exe scripts/run_reproducible_benchmarks.py --platform-label LOCAL
-```
-
-macOS/Linux:
-
-```bash
-.venv/bin/python scripts/run_reproducible_benchmarks.py --platform-label LOCAL
-```
-
-Each invocation creates a fresh timestamped directory under `results/runs/` and a matching ZIP bundle. The bundle contains the machine/environment JSON, `pip freeze` output, exact command logs, a manifest with the Git revision and SHA-256 hashes of bundle artifacts, the security-test CSV snapshots, both benchmark CSV sets, successful raw handshake timings, and platform-labelled plots. The run directory is ignored by Git so a teammate's measurements do not accidentally replace the committed Platform A evidence. Existing `results/tables/*.csv`, `results/figures/*.png`, and root `platform_A_info.json` are not benchmark output targets.
-
-Default benchmark settings are 100 handshake trials per suite and 15 complete bidirectional rounds per payload and suite. They can be changed with `--handshake-runs` and `--payload-repeats`. The elapsed timing values are machine-dependent; reproducibility here means the same process, test criteria, payload checks, metadata, and output structure—not identical timing values across different machines. Measurements remain local/in-process, not real-network measurements. The self-repairing test launcher may regenerate local `trust_store.json`; keep that generated local test trust store uncommitted.
-
-## Summary
-
-PS-P1 Phase 2 implements a mutual-authentication secure channel with two suites behind one channel state machine. The post-quantum suite uses ML-KEM-768 (FIPS 203), ML-DSA-65 (FIPS 204), HKDF-SHA256 and AES-256-GCM. The classical comparison baseline uses X25519 and Ed25519 with the same HKDF-SHA256 key schedule and AES-256-GCM record layer. Suite selection is local policy on both endpoints; suite negotiation is not performed on the wire.
-
-The T1–T9 fault-injection battery has 52 detailed checks across the two suites. In Platform A run `20261029T211325Z`, the PQC handshake median is 2.883 ms (IQR 1.236 ms; p95 5.186 ms) and total measured handshake traffic is 9,134 B; the classical baseline median is 0.738 ms (IQR 0.048 ms; p95 0.885 ms) and total handshake traffic is 448 B. Both suites use 32 B transmitted record overhead. Measurements are local/in-process, not network results. These figures describe Platform A only and are not performance promises for another laptop. The Platform A metadata records `on_battery=false` for this run. The reported numeric results are drawn from the committed Platform A CSVs. The all-in-one runner creates fresh figures from each run's own CSVs in its separate bundle; it does not replace the committed Platform A figures.
-
-## Test and smoke-check commands
-
-Run these from the repository root, using the virtual-environment interpreter shown for your operating system in Quick start.
-
-| Purpose | Command | Expected evidence |
+| Purpose | Windows (PowerShell) | macOS / Linux |
 |---|---|---|
-| Full T1–T9 security suite with automatic test-identity repair | `python scripts/run_security_suite.py` | `ALL TESTS PASSED: 52/52 detailed checks`; writes `results/security_tests.csv` and `results/security_tests_detailed.csv` |
-| Environment and primitive smoke checks for the designated Platform A machine | `python common/env_check.py` | `READY - environment is correct.` and `platform_A_info.json` |
-| Regression vectors and replay-window rules | `python -m tests.test_regressions` | RFC 5869 vector/oracle and replay-window assertions pass |
-| End-to-end PQC demo | `python -m cli.demo --suite QFF26-PQC-1` | metadata-only handshake, bidirectional transfer and authenticated-close output |
+| Run T1–T9 only | `.\.venv\Scripts\python.exe scripts/run_security_suite.py` | `.venv/bin/python scripts/run_security_suite.py` |
+| Regression vectors and replay-window checks | `.\.venv\Scripts\python.exe -m tests.test_regressions` | `.venv/bin/python -m tests.test_regressions` |
+| PQC end-to-end demo | `.\.venv\Scripts\python.exe -m cli.demo --suite QFF26-PQC-1` | `.venv/bin/python -m cli.demo --suite QFF26-PQC-1` |
 
-The command examples in this table use `python` as shorthand for the selected virtual-environment interpreter. On Windows use the virtual-environment interpreter at `.\.venv\Scripts\python.exe` from the repository root; on macOS/Linux use `.venv/bin/python`. You normally do **not** need to run `python scripts/provision_identities.py` separately because the security launcher repairs missing or inconsistent local test identities automatically.
-For an additional laptop, do not run the environment checker with its default Platform A output path; use the all-in-one runner with `--platform-label LOCAL`, which stores metadata inside the per-run bundle. The direct benchmark scripts also default to `LOCAL` and write to the ignored `results/runs/manual/` scratch directory, not the committed Platform A tables.
+The security launcher verifies Alice/Bob test identity key pairs and the local trust store, repairs missing or inconsistent local test identities when needed, and then runs T1–T9. Separate provisioning is not normally needed. The expected success line is `ALL TESTS PASSED: 52/52 detailed checks`; elapsed time varies by machine.
 
-## Verification
+Provisioning can regenerate local `trust_store.json`; do not commit that local test file. The test suite refreshes result CSVs, so inspect `git status --short` after diagnostic commands and do not commit generated changes unless the evidence was intentionally regenerated and reviewed. `common/env_check.py` writes `platform_A_info.json` by default; do not label metadata collected on a different laptop as Platform A.
 
-The runner prints `ALL TESTS PASSED: 52/52 detailed checks in <elapsed>s` when successful. The elapsed time varies by machine; the stable pass criterion is `ALL TESTS PASSED: 52/52 detailed checks`.
+## Protocol and security summary
 
-## Reproduce principal results
+PS-P1 implements a **mutually authenticated** secure channel behind a shared channel state machine:
 
-Use the one-command runner above for the authoritative reproduction workflow. Every run records a unique run ID and machine metadata, preserves the raw successful handshake timings, includes T1–T9 result snapshots and dependency versions, checks that all three official payloads pass SHA-256 validation, and generates figures from that run's own tables. The resulting `summary.md`, `manifest.json`, logs, CSVs, figures and matching ZIP bundle are placed under `results/runs/`.
+- **Post-quantum suite `QFF26-PQC-1`:** ML-KEM-768 (FIPS 203), ML-DSA-65 (FIPS 204), HKDF-SHA256 and AES-256-GCM.
+- **Classical comparison `QFF26-CLASSICAL-1`:** X25519 and Ed25519 using the same HKDF-SHA256 key schedule and AES-256-GCM record layer.
+- **Identity model:** Alice/Bob verification keys are authenticated by the local trust store; a peer-provided, untrusted public key is not accepted as a trust anchor.
+- **Transcript protection:** signatures bind the endpoint identities, roles/session context, selected algorithms and exchanged handshake material. Each direction derives a separate traffic key.
+- **Replay/tampering behavior:** record replay and handshake replay are tested; modified handshake data, invalid signatures, modified ciphertext/tags, identity swaps and algorithm downgrade attempts must be rejected before untrusted plaintext is released.
+- **Suite selection:** suite policy is local to both endpoints; the protocol does not negotiate suites on the wire.
 
-For component-level diagnosis, each script accepts custom output destinations so a Platform B/D experiment or an extra laptop run does not overwrite Platform A evidence:
+This is a competition prototype, **not a production secure-channel implementation or production security certification**.
 
-| Component | Output / key evidence |
-|---|---|
-| Environment + primitive self-test | `environment.json`: OS, CPU/RAM, Python, crypto-library metadata and verified primitives |
-| Mandatory T1–T9 security suite | `security/`: security-test CSV snapshots; `logs/security_suite.log` |
-| Handshake benchmark | `handshake_results.csv`, `bench_handshake.csv`, `handshake_raw_samples.csv`: median, IQR, p95, actual serialized M1/M2/M3 byte counts and trial-level timings |
-| Official payload benchmark | `payload_results.csv`, `bench_payload.csv`: encryption/decryption medians, record overhead, throughput and SHA-256 match for the 1 KB, 100 KB and 10 MB payloads |
-| Figures | Three PNG figures rendered from the run's own CSVs with the run's platform label |
+### Mandatory T1–T9 tests
 
-Run component commands from the repository root with the selected virtual-environment interpreter. `--output-dir`, `--tables-dir` and `--output-dir` for figures accept paths relative to the repository root. Use a fresh output directory and unique run ID for every standalone run. See `python bench/bench_handshake.py --help`, `python bench/bench_payload.py --help` and `python scripts/make_figures.py --help` for options.
-
-## Platforms used
-
-| Platform | CPU | Cores | RAM | OS |
-|---|---|---|---|---|
-| A (results platform) | Intel(R) Core(TM) i5-8257U CPU @ 1.40GHz | 4 physical / 8 logical | 8.0 GB | macOS 15.8.2, x86_64 |
-| B (optional constrained profile) | Host CPU model recorded in run metadata | 1 effective CPU core | 128 MB budget | Not run; apply the official profile before claiming B |
-| D | Not used | Not used | Not used | Not used |
-
-Run metadata in `platform_A_info.json` was generated at `2026-10-29T21:13:19+00:00` and records `on_battery=false`, so the Platform A environment check observed AC power for this benchmark run. Measurements remain local/in-process; AC power does not make them network measurements or a cross-device performance guarantee.
-
-**Cross-platform handoff:** a second laptop run uses `--platform-label LOCAL` and records that machine’s actual OS/version, CPU, core count, RAM and Python version in its own bundle. A passing security suite is a portability smoke test, not a second performance benchmark. Platform B specifically means the constrained profile in the problem statement, not a teammate's unconstrained laptop; do not claim Platform B results unless its profile has actually been applied. Do not overwrite Platform A’s measurements.
-
-## Libraries and versions
-
-| Library | Compatible requirement | Version in the current Python 3.13.17 environment |
+| ID | Scenario | Expected behavior |
 |---|---|---|
-| `cryptography` | `==50.0.2` (exact organizer pin) | `50.0.2` |
-| `psutil` | `>=5.9` | `7.2.2` |
-| `numpy` | `>=1.24` | `2.5.4` |
-| `pandas` | `>=2.0` | `3.1.0` |
-| `matplotlib` | `>=3.7` | `3.11.2` |
+| T1 | Honest handshake and the 1 KB, 100 KB and 10 MB official payloads in both directions | Both endpoints establish; all six payload transfers match byte-for-byte and by SHA-256; authenticated close succeeds |
+| T2 | Bit flips in exchanged key material, nonces, identities, version or suite identifier | Handshake aborts at the owning validation step; no traffic keys are established |
+| T3 | Signature tampering | Rejected with authentication failure |
+| T4 | Application-record ciphertext tampering | Rejected; plaintext withheld |
+| T5 | GCM tag and authenticated-header tampering | Invalid tag or structural/transcript rejection; plaintext withheld |
+| T6 | Attacker's own valid key and signature but untrusted identity | Rejected at trust-store lookup |
+| T7 | Identity/role swap or signature reused from another session | Rejected through identity and transcript binding |
+| T8 | Record replay, old-session replay and repeated first-handshake message | Rejected by replay detection, handshake authentication or freshness cache |
+| T9 | Unknown suite identifier or valid-suite substitution | Rejected by policy; no silent fallback |
 
-The analysis-package minimums are intentionally not exact pins: PyPI declares NumPy 2.5.4 as Python >=3.12, and pandas 3.1.0 plus matplotlib 3.11.2 as Python >=3.11. The lower bounds above let pip select compatible releases across the declared Python 3.11–3.13 range while preserving `cryptography==50.0.2`. The recorded Platform A environment used the versions shown in the last column; only Python 3.13.17 was exercised for this submission.
+The detailed test output documents the exact observed failure for each case. Replay-cache persistence across process restarts and deployment-wide trust-store operations are outside the guarantees of this prototype.
 
-## Results
+## Reference Platform A results
 
-All current committed result files are linked below. Benchmark CSVs are the source of truth for report numbers; do not hand-edit their values.
+The committed Platform A results are from run `20261029T211325Z`. They are local/in-process observations, not network latency or guarantees for other machines.
 
+| Metric | PQC: ML-KEM-768 + ML-DSA-65 | Classical: X25519 + Ed25519 |
+|---|---:|---:|
+| Handshake median | 2.883 ms | 0.738 ms |
+| Handshake IQR | 1.236 ms | 0.048 ms |
+| Handshake p95 | 5.186 ms | 0.885 ms |
+| Total serialized handshake bytes | 9,134 B | 448 B |
+| Successful handshakes | 100/100 | 100/100 |
+| Transmitted record overhead | 32 B | 32 B |
+
+The official payload benchmark includes encrypt/decrypt timing, wire-record size, overhead and SHA-256 results for each of the three payloads. See the CSVs linked below for the underlying values; the CSVs are the source of truth and should not be hand-edited.
+
+## Result files
+
+- [Technical report](docs/TECHNICAL_REPORT.md)
+- [Integration contract](docs/INTEGRATION_CONTRACT.md)
 - [Organizer security summary](results/security_tests.csv)
 - [Detailed T1–T9 checks](results/security_tests_detailed.csv)
-- [Official handshake results](results/tables/handshake_results.csv)
-- [Handshake detail and M1/M2/M3 sizes](results/tables/bench_handshake.csv)
-- [Payload encrypt/decrypt results and record overhead](results/tables/payload_results.csv)
-- [End-to-end payload throughput](results/tables/bench_payload.csv)
-- [Per-trial handshake samples (100 successful timings per suite)](results/tables/handshake_raw_samples.csv)
+- [Handshake summary results](results/tables/handshake_results.csv)
+- [Handshake message sizes and benchmark details](results/tables/bench_handshake.csv)
+- [Raw successful handshake timings](results/tables/handshake_raw_samples.csv)
+- [Payload encryption/decryption results](results/tables/payload_results.csv)
+- [Payload throughput](results/tables/bench_payload.csv)
 - [Handshake latency figure](results/figures/handshake_latency.png)
 - [Handshake message sizes figure](results/figures/handshake_message_bytes.png)
 - [10 MB payload timing figure](results/figures/payload_10mb_timing.png)
 - [Official payload SHA-256 manifest](data/payloads/payload_sha256.txt)
 - [Platform A environment metadata](platform_A_info.json)
 
-## Baseline used
+## Platforms recorded
 
-`QFF26-CLASSICAL-1` is the classical comparison baseline: X25519 key exchange and Ed25519 signatures. It uses the **same HKDF-SHA256 key schedule and AES-256-GCM record layer** as `QFF26-PQC-1`. It is a performance/security comparison baseline, not a recommendation to deploy a classical-only suite against a quantum-capable adversary.
+| Label | Description | Status |
+|---|---|---|
+| A | Intel Core i5-8257U, 4 physical / 8 logical cores, 8 GB RAM, macOS 15.8.2, x86_64 | Reference results recorded; environment metadata observed `on_battery=false` |
+| B | Official constrained profile: 1 effective CPU core, single-threaded libraries, 128 MB memory budget | Not run; do not claim B results until the official profile has been applied and measured |
+| D | A justified deployment constraint, such as real-link latency/loss or a slower second device | Not used |
+| LOCAL | Additional teammate/organizer machine, using its actual environment metadata | Use the one-command runner to create a separate portability/evidence bundle |
+
+An ordinary teammate laptop should be labelled `LOCAL`, not Platform B. Platform A figures remain separate and should not be overwritten by runs on other computers.
+
+## Dependencies
+
+`requirements.txt` is authoritative for installation. The key cryptographic dependency is the exact organizer pin `cryptography==50.0.2`. Current compatible bounds for the analysis/benchmark libraries are:
+
+| Package | Requirement |
+|---|---|
+| `cryptography` | `==50.0.2` |
+| `psutil` | `>=5.9` |
+| `numpy` | `>=1.24` |
+| `pandas` | `>=2.0` |
+| `matplotlib` | `>=3.7` |
+
+The recorded Platform A environment used Python 3.13.17, cryptography 50.0.2, psutil 7.2.2, NumPy 2.5.4, pandas 3.1.0 and matplotlib 3.11.2. Python 3.13.17 is the interpreter version exercised for the committed Platform A results; declared compatibility with Python 3.11–3.12 should not be confused with identical performance measurements.
 
 ## Known limitations
 
-- This is a competition prototype, not a production secure-channel implementation or production security certification.
-- Security tests and performance measurements use a local in-process wire; no two-machine network latency, packet loss, congestion or deployment measurements have been collected.
-- Automatic renegotiation after `SessionExhausted` is not implemented; creating a fresh session requires a new handshake.
-- Python key zeroization is best-effort; Python's object/memory model cannot guarantee complete erasure.
-- Trust-store distribution, integrity, rotation and revocation are out-of-band and not solved by this prototype.
-- It is a single trust domain; denial-of-service resistance and side-channel hardening are out of scope.
-- Payloads are sent as one record; chunking/fragmentation is not implemented.
+- This is a competition prototype, not a production security certification.
+- The handshake and payload timings use a local in-process wire; no two-machine network latency, packet loss, congestion or deployment benchmark has been collected.
+- Automatic renegotiation after `SessionExhausted` is not implemented; a fresh session needs a new handshake.
+- Python key zeroization is best-effort; Python's object and memory model cannot guarantee complete erasure.
+- Trust-store distribution, integrity, rotation and revocation are out-of-band and not solved here.
+- The prototype assumes a single trust domain; denial-of-service resistance and side-channel hardening are out of scope.
+- Each payload is sent as one record; chunking and fragmentation are not implemented.
 
-## T1–T9 (all faults injected on the wire between two real endpoints)
+## Troubleshooting
 
-| ID | Scenario | Expected |
-|----|----------|----------|
-| T1 | honest handshake; 3 official payloads (1KB/100KB/10MB) both directions; byte + SHA-256 vs committed `payload_sha256.txt`; authenticated close | success, ESTABLISHED, 6/6 verified |
-| T2 | parametrized bit-flips: kem_pk_C, kem_ct, nonce_C, nonce_S, id_C, id_S, version, suite_id | abort at the step that owns the field; keys never established |
-| T3 | bit-flip sig_S / sig_C | `AuthenticationFailure` |
-| T4 | bit-flip record ciphertext | `RecordAuthenticationError` wrapping `InvalidTag`; plaintext withheld |
-| T5 | GCM tag / authenticated header-AAD tampering, plus version/direction checks | GCM tampering wraps `InvalidTag`; malformed version/direction rejected before AEAD |
-| T6 | attacker identity + own valid key | `UntrustedIdentity` at lookup, before signature math |
-| T7 | (a) role swap with genuine key, (b) genuine old sig_S spliced into a fresh session | transcript/identity binding rejects both |
-| T8 | (a) app-record replay, (b) full old-session replay, (c) M1 replay with cache | `RecordReplayDetected` / `AuthenticationFailure` / `HandshakeReplayDetected` |
-| T9 | (a) unknown suite_id, (b) echoed suite substituted to the other valid suite | `PolicyViolation` before any crypto; no fallback |
-
-## Platform-specific troubleshooting
-
-- **`Python 3.15 not supported`:** this is an interpreter-version mismatch, not a cryptographic test failure. Follow Quick start Steps 1 and 3 to install/find Python 3.13 and recreate `.venv` with the versioned interpreter. The repo currently accepts only Python 3.11–3.13; do not remove the guard without separately validating the dependencies and full test/benchmark workflow on another version.
-- **`No matching distribution`, or `cryptography==50.0.2` cannot install:** confirm that the active interpreter is Python 3.11–3.13 and that the pinned requirements have not been changed. On Intel macOS (x86_64) only, if `pip` cannot install a compatible wheel for the organizer's fixed cryptography pin, consult the [Intel Mac environment helper](scripts/QFF2026_intel_mac_env_setup.sh). It is not a general Windows/Linux/Apple-Silicon setup path.
-- **Wrong environment is still active:** run `.venv/bin/python --version` on macOS/Linux or ` .\.venv\Scripts\python.exe --version` on Windows, from the repository root. Always call the interpreter inside `.venv` for project commands; do not rely on whichever `python` happens to be first on `PATH`.
-- **No `uv` command:** nothing is missing. `uv` is optional; all setup steps in this README use the standard Python `venv` module and `pip`.
+- **`Python 3.15 not supported`:** the `.venv` was created with an unsupported interpreter. Follow setup steps 2–3 to install/find Python 3.13 and recreate `.venv`. Reinstalling packages into the old Python 3.15 environment will not fix the version guard. Do not remove the guard without validating the dependency stack and complete workflow on another version.
+- **`No matching distribution` or `cryptography==50.0.2` will not install:** verify that the virtual environment is using Python 3.11–3.13 and that `requirements.txt` retains the organizer pin. On Intel macOS (x86_64) only, if a compatible wheel cannot be installed, see the [Intel Mac environment helper](scripts/QFF2026_intel_mac_env_setup.sh); it is not a general Windows, Linux or Apple Silicon setup path.
+- **Wrong Python still runs:** check `.venv/bin/python --version` on macOS/Linux or `.\.venv\Scripts\python.exe --version` in PowerShell, from the repository root. Always use the interpreter inside `.venv`.
+- **`uv` not found:** it is optional. Use the `venv` and `pip` setup commands above.
+- **Local files changed after tests:** inspect `git status --short`. Keep generated run bundles, regenerated `trust_store.json`, local machine metadata and unreviewed result CSV changes out of the source commit.
 
 ## Repository layout
 
 ```text
-common/env_check.py              environment contract -> READY + platform_A_info.json
-protocol/                         TLV, suites, key schedule, record layer, state machines
-cli/adapter.py                    UX façade / integration boundary
-cli/demo.py                       metadata-only end-to-end demo
-tests/run_security_tests.py       T1–T9 security checks -> results/security_tests*.csv
-tests/test_regressions.py         RFC 5869 and replay-window regressions
-bench/bench_handshake.py          handshake timing, sizes and raw samples
-bench/bench_payload.py             record timing and end-to-end throughput
-scripts/make_figures.py            CSV-only figures; accepts per-run input/output paths
-scripts/run_reproducible_benchmarks.py  one-command validation + isolated benchmark bundle
-scripts/provision_identities.py   local identities (git-ignored) + public trust store
-scripts/bootstrap_env.sh          optional Bash setup helper
-scripts/QFF2026_intel_mac_env_setup.sh  Intel-Mac OpenSSL setup helper
-docs/TECHNICAL_REPORT.md           full methodology, evidence and interpretation
-docs/INTEGRATION_CONTRACT.md       finalized UX/protocol integration contract
-results/                           committed CSV evidence and figures
-data/payloads/payload_sha256.txt   official payload manifest (payload binaries generated locally)
-Phase One/                        archived Phase 1 submission (large uploaded papers ZIP removed)
+common/env_check.py                 environment contract and primitive self-test
+protocol/                           TLV, suites, key schedule, record layer, state machines
+cli/adapter.py                      UX facade / integration boundary
+cli/demo.py                         metadata-only end-to-end demo
+tests/run_security_tests.py         T1–T9 fault-injection tests
+tests/test_regressions.py           HKDF vectors and replay-window regressions
+bench/bench_handshake.py            handshake latency, serialized sizes, raw samples
+bench/bench_payload.py              payload encryption/decryption timing and throughput
+scripts/run_security_suite.py       identity repair + T1–T9 test launcher
+scripts/run_reproducible_benchmarks.py  one-command validation and isolated evidence bundle
+scripts/make_figures.py             figures from CSV inputs
+scripts/provision_identities.py     local test identities and public trust store
+docs/TECHNICAL_REPORT.md            methodology, evidence and analysis
+docs/INTEGRATION_CONTRACT.md        UX/protocol integration contract
+results/                            committed CSV evidence and figures
+data/payloads/payload_sha256.txt    official payload SHA-256 manifest
+Phase One/                          archived Phase 1 submission material
 ```
+
+## Team members and submission contact
+
+| Role | Name | Contact |
+|---|---|---|
+| Primary repository contact | Vasisht Hire | [Devo982/SRM-Qiskit-FF-PS-P1](https://github.com/Devo982/SRM-Qiskit-FF-PS-P1) |
+
+The supplied repository snapshot did not identify the complete registered team roster. Add the actual names and contacts of all other registered members before final submission; no teammate names have been inferred or invented.
