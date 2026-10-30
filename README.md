@@ -118,9 +118,9 @@ Each run creates a unique directory and matching ZIP in `results/runs/`. The bun
 
 Default benchmark settings are 100 handshake trials per suite and 15 bidirectional rounds per payload and suite. The runner supports `--handshake-runs` and `--payload-repeats` when longer or shorter trials are needed.
 
-Timings are machine-dependent; reproducibility means the same procedure, checks, input payloads and evidence structure—not identical timing numbers across machines. The measurements in this project are **local/in-process, not real-network measurements**.
+Timings are machine-dependent; reproducibility means the same procedure, checks, input payloads and evidence structure—not identical timing numbers across machines. The official benchmark tables are local/in-process measurements; the separate two-device Platform D real-network run is documented below.
 
-The one-command validation workflow runs the mandatory T1–T9 security battery and, after it passes, the 12 TCP transport unit tests. The command logs record both validation stages. The benchmark measurements themselves continue to use the existing in-process transport.
+The one-command validation workflow runs the mandatory T1–T9 security battery and, after it passes, the TCP transport and Platform D helper tests. The command logs record both validation stages. The official benchmark measurements themselves continue to use the existing in-process transport.
 
 The runner writes its benchmark artifacts inside each run bundle. It does not use the committed `results/tables/*.csv`, `results/figures/*.png`, or root `platform_A_info.json` as output targets. Run bundles are ignored by Git so local measurements do not accidentally replace the submitted Platform A evidence.
 
@@ -130,7 +130,7 @@ The full benchmark command above is the recommended path. For diagnosis, these i
 
 | Purpose | Windows (PowerShell) | macOS / Linux |
 |---|---|---|
-| Run T1–T9 + TCP transport tests | `.\.venv\Scripts\python.exe scripts/run_security_suite.py` | `.venv/bin/python scripts/run_security_suite.py` |
+| Run T1–T9 + TCP transport and Platform D helper tests | `.\.venv\Scripts\python.exe scripts/run_security_suite.py` | `.venv/bin/python scripts/run_security_suite.py` |
 | Run TCP transport tests only | `.\.venv\Scripts\python.exe -m unittest -v tests.test_tcp_transport` | `.venv/bin/python -m unittest -v tests.test_tcp_transport` |
 | Regression vectors and replay-window checks | `.\.venv\Scripts\python.exe -m tests.test_regressions` | `.venv/bin/python -m tests.test_regressions` |
 | PQC in-process end-to-end demo | `.\.venv\Scripts\python.exe -m cli.demo --suite QFF26-PQC-1` | `.venv/bin/python -m cli.demo --suite QFF26-PQC-1` |
@@ -144,11 +144,11 @@ Expected validation output:
 ```text
 ALL TESTS PASSED: 54/54 detailed checks
 
-Ran 12 tests
+Ran 24 tests
 OK
 ```
 
-These are separate validation groups: 54 security checks and 12 TCP transport unit tests. They must not be represented as a combined 66-check security score.
+These are separate validation groups: 54 detailed T1–T9 security checks and 24 TCP transport/Platform D helper unit tests. They must not be represented as a combined 78-check security score.
 
 The committed root `trust_store.json` is a public-only reference trust-store artifact. The automatically provisioned local tests and CLI demo use `identities/trust_store.test.json`, generated to match the local private Alice/Bob test identities in the same git-ignored directory. This generated test fixture is not an independently authenticated production trust bootstrap.
 
@@ -241,6 +241,59 @@ The demonstration uses `127.0.0.1:8765` by default and a 30-second connection ti
 
 **Scope:** this is a functional separate-process TCP demonstration, not a two-device network experiment or network performance benchmark. It does not measure network RTT, packet loss, congestion, or deployment performance. The application payloads in this demo are small fixed messages; the official 1 KB, 100 KB and 10 MB payload benchmarks remain in-process measurements.
 
+## Platform D — two-device real-network experiment
+
+Platform D was exercised on 2026-10-30 using Alice's macOS laptop and Bob's Linux laptop communicating over a shared local network. Unlike the loopback demonstration above, the client and server ran on separate physical devices. The experiment used the existing secure-channel implementation over TCP; it did not modify the cryptographic protocol.
+
+**Recorded run:** `D_20261030_WIFI01`
+**Suite:** `QFF26-PQC-1` (ML-KEM-768 + ML-DSA-65)
+**Transport:** TCP, port `8766`
+**Configuration:** 5 sessions; payload sizes 1 KiB, 100 KiB and 10 MiB; 2 rounds per payload.
+
+### Run commands
+
+Provision matching local test identities and trust stores on the designated primary machine, then transfer the appropriate identity and matching public test trust store to the other device securely. Do not independently provision identities on each device: both endpoints must trust the same peer keys. Never commit private keys or the git-ignored `identities/` directory.
+
+Start Bob's server first (Linux/macOS):
+
+```bash
+.venv/bin/python -m cli.platform_d --role server --suite QFF26-PQC-1 --run-id D_20261030_WIFI01 --bind-host 0.0.0.0
+```
+
+Then run Alice's client from the other device, substituting Bob's reachable LAN address for `BOB_LAN_IP`:
+
+```bash
+.venv/bin/python -m cli.platform_d --role client --suite QFF26-PQC-1 --run-id D_20261030_WIFI01 --host BOB_LAN_IP
+```
+
+The server listens on TCP port `8766` by default. Configure the host firewall to permit that port only from the authorized client device on the trusted test network; do not expose it broadly to the internet. Both devices need the same repository revision and compatible Python/dependency environment.
+
+### Recorded results
+
+Both endpoints completed **5/5 sessions**. Alice reported that all echoed records matched and authenticated close succeeded for every session. Bob recorded **30 verified application records** and **105,891,840 plaintext bytes received and sent**.
+
+| Metric | Recorded value |
+|---|---:|
+| Alice TCP-connect median | 12.269 ms |
+| Alice client-handshake median | 20.289 ms |
+| Alice 1 KiB round-trip RTT median | 31.138 ms |
+| Alice 100 KiB round-trip RTT median | 57.385 ms |
+| Alice 10 MiB round-trip RTT median | 1,773.434 ms |
+| Alice 10 MiB round-trip goodput median | 11.278 MiB/s |
+| Bob server-handshake median | 20.886 ms |
+| Successful sessions | 5/5 on each endpoint |
+
+These are observations from one real-link run, not general performance guarantees. The run validates successful two-device operation and records end-to-end timings; it does **not** establish a PQC performance advantage because a matching classical real-link baseline has not yet been recorded. Network conditions such as packet loss and congestion were not independently controlled or measured.
+
+### Evidence files
+
+- [Platform D runbook](docs/PLATFORM_D_RUNBOOK.md)
+- [Alice/client metrics](results/platform_d/D_20261030_WIFI01_QFF26-PQC-1_client.json)
+- [Bob/server metrics](results/platform_d/D_20261030_WIFI01_QFF26-PQC-1_server.json)
+- [Alice environment metadata](results/platform_d/environment_alice.json)
+
+The JSON files contain the recorded configuration, environment metadata, raw timings and summary statistics. Preserve both endpoint files together when citing this experiment.
+
 ## Protocol and security summary
 
 PS-P1 implements a **mutually authenticated** secure channel behind a shared channel state machine:
@@ -321,6 +374,10 @@ The TCP loopback demonstration is not included in these benchmark figures.
 - [10 MB payload timing figure](results/figures/payload_10mb_timing.png)
 - [Official payload SHA-256 manifest](data/payloads/payload_sha256.txt)
 - [Platform A environment metadata](platform_A_info.json)
+- [Platform D two-device runbook](docs/PLATFORM_D_RUNBOOK.md)
+- [Platform D PQC client metrics](results/platform_d/D_20261030_WIFI01_QFF26-PQC-1_client.json)
+- [Platform D PQC server metrics](results/platform_d/D_20261030_WIFI01_QFF26-PQC-1_server.json)
+- [Platform D Alice environment metadata](results/platform_d/environment_alice.json)
 
 ## Platforms recorded
 
@@ -328,12 +385,12 @@ The TCP loopback demonstration is not included in these benchmark figures.
 |---|---|---|
 | A | Intel Core i5-8257U, 4 physical / 8 logical cores, 8 GB RAM, macOS 15.8.2, x86_64 | Reference results recorded; environment metadata observed `on_battery=false` |
 | B | Official constrained profile: 1 effective CPU core, single-threaded libraries, 128 MB memory budget | Not run; do not claim B results until the official profile has been applied and measured |
-| D | A justified deployment constraint, such as real-link latency/loss or a slower second device | Not used |
+| D | Two-device TCP secure-channel experiment over a real local network (Alice/macOS and Bob/Linux) | PQC run recorded; see `results/platform_d/` and the Platform D section below. One run only; no classical real-link comparison yet. |
 | LOCAL | Additional teammate/organizer machine, using its actual environment metadata | Use the one-command runner to create a separate portability/evidence bundle |
 
 An ordinary teammate laptop should be labelled `LOCAL`, not Platform B. Platform A figures remain separate and should not be overwritten by runs on other computers.
 
-**The TCP loopback demonstration does not qualify as Platform D evidence.** It runs both endpoints on the same machine through `127.0.0.1`. Platform D should only be marked as used after a justified deployment constraint has actually been applied and measured, with reproducible evidence.
+**The TCP loopback demonstration does not qualify as Platform D evidence.** It runs both endpoints on the same machine through `127.0.0.1`. The separate two-device run documented in the Platform D section is the real-network evidence; its scope and limitations should be kept distinct from the in-process benchmark results.
 
 ## Dependencies
 
@@ -352,8 +409,8 @@ The recorded Platform A environment used Python 3.13.17, cryptography 50.0.2, ps
 ## Known limitations
 
 - This is a competition prototype, not a production security certification.
-- The handshake and payload timings use a local in-process wire; no two-machine network latency, packet loss, congestion or deployment benchmark has been collected.
-- The TCP demonstration is a same-machine loopback functional test, not a two-device network deployment.
+- The official handshake and payload benchmark tables use a local in-process wire. Separate two-device timings are available for one Platform D PQC run, but packet loss and congestion were not independently measured and no classical real-link baseline is recorded.
+- The `cli.tcp_demo` command is still a same-machine loopback functional test; use `cli.platform_d` for the documented two-device experiment.
 - Automatic renegotiation after `SessionExhausted` is not implemented; a fresh session needs a new handshake.
 - Python key zeroization is best-effort; Python's object and memory model cannot guarantee complete erasure.
 - Trust-store distribution, integrity, rotation and revocation are out-of-band and not solved here.
@@ -381,6 +438,9 @@ protocol/tcp_wire.py                    synchronous TCP frame transport
 cli/adapter.py                           UX facade / integration boundary
 cli/demo.py                              metadata-only in-process end-to-end demo
 cli/tcp_demo.py                          separate-process TCP loopback demonstration
+cli/platform_d.py                         two-device Platform D experiment harness
+scripts/platform_d_probe.py               Platform D peer reachability probe
+tests/test_platform_d.py                  Platform D helper tests
 tests/run_security_tests.py              T1–T9 fault-injection tests
 tests/test_tcp_transport.py              TCP framing and socket transport unit tests
 tests/test_regressions.py                 HKDF vectors and replay-window regressions
