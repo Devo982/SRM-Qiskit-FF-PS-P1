@@ -178,9 +178,16 @@ def main() -> int:
     if result.returncode != 0:
         return result.returncode
 
-    print("\nRunning TCP transport unit tests...\n", flush=True)
+    print("\nRunning TCP transport and Platform D helper unit tests...\n", flush=True)
     transport_result = subprocess.run(
-        [sys.executable, "-m", "unittest", "-v", "tests.test_tcp_transport"],
+        [
+            sys.executable,
+            "-m",
+            "unittest",
+            "-v",
+            "tests.test_tcp_transport",
+            "tests.test_platform_d",
+        ],
         cwd=ROOT,
         check=False,
     )
