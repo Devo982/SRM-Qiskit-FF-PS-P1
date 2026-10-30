@@ -4,7 +4,7 @@ Runs both endpoints in-process over the in-memory wire and prints METADATA
 ONLY output (states, sizes, suite id, failure categories) - invariant I4:
 never keys, never plaintext of failed records.
 
-Requires provisioning: python scripts/provision_identities.py
+Requires provisioning: python scripts/provision_identities.py (creates local test identities and identities/trust_store.test.json)
 """
 from __future__ import annotations
 
@@ -26,12 +26,28 @@ def main() -> None:
     parser.add_argument("--suite", default="QFF26-PQC-1", choices=sorted(SUITES))
     args = parser.parse_args()
 
-    if not (REPO_ROOT / "trust_store.json").exists():
-        sys.exit("trust store missing - run: python scripts/provision_identities.py")
+    trust_path = REPO_ROOT / "identities" / "trust_store.test.json"
+    identities_dir = REPO_ROOT / "identities"
+
+    if not trust_path.is_file():
+        sys.exit(
+            "local test trust store missing - run: "
+            "python scripts/provision_identities.py"
+        )
 
     wire = InMemoryWire()
-    client = SecureChannelFacade("client", "client:alice", args.suite).open(wire.client_ep)
-    server = SecureChannelFacade("server", "server:bob", args.suite).open(wire.server_ep)
+
+    client = SecureChannelFacade(
+        "client", "client:alice", args.suite,
+        trust_store_path=trust_path,
+        identities_dir=identities_dir,
+    ).open(wire.client_ep)
+
+    server = SecureChannelFacade(
+        "server", "server:bob", args.suite,
+        trust_store_path=trust_path,
+        identities_dir=identities_dir,
+    ).open(wire.server_ep)
     print(f"[demo] suite={args.suite} (local policy, no online negotiation)")
 
     def pump() -> None:

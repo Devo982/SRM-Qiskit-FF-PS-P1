@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Self-heal local test identities/trust store, then run the PS-P1 T1-T9 suite.
+"""Self-heal local test identities/test trust store, then run the PS-P1 T1-T9 suite.
 
 Use from the repository root:
     python scripts/run_security_suite.py
@@ -81,37 +81,42 @@ def inspect_identities() -> tuple[list[str], list[str], dict[str, dict[str, Any]
 
 def inspect_trust_store(identities: dict[str, dict[str, Any]]) -> list[str]:
     """Check whether the public trust store exactly matches valid local identities."""
-    path = ROOT / "trust_store.json"
+    path = ROOT / "identities" / "trust_store.test.json"
     if not path.is_file() or path.stat().st_size == 0:
-        return ["trust_store.json is missing or empty"]
+        return ["identities/trust_store.test.json is missing or empty"]
     try:
         trust = json.loads(path.read_text(encoding="utf-8"))
         entries = trust.get("identities") if isinstance(trust, dict) else None
         expected_names = {spec[1] for spec in IDENTITY_SPECS}
         if trust.get("version") != 1 or not isinstance(entries, dict):
-            return ["trust_store.json has an invalid structure/version"]
+            return ["identities/trust_store.test.json has an invalid structure/version"]
         if set(entries) != expected_names:
-            return ["trust_store.json identity set differs from local test identities"]
+            return ["identities/trust_store.test.json identity set differs from local test identities"]
 
         for filename, identity, role in IDENTITY_SPECS:
             data = identities[identity]
             entry = entries.get(identity)
             if not isinstance(entry, dict) or entry.get("role") != role:
-                return [f"trust_store.json role mismatch for {identity}"]
+                return [f"identities/trust_store.test.json role mismatch for {identity}"]
             keys = entry.get("keys")
             if not isinstance(keys, dict):
-                return [f"trust_store.json keys missing for {identity}"]
+                return [f"identities/trust_store.test.json keys missing for {identity}"]
             if keys.get("QFF26-PQC-1") != data.get("mldsa65_public_b64"):
-                return [f"trust_store.json ML-DSA key mismatch for {identity}"]
+                return [f"identities/trust_store.test.json ML-DSA key mismatch for {identity}"]
             if keys.get("QFF26-CLASSICAL-1") != data.get("ed25519_public_b64"):
-                return [f"trust_store.json Ed25519 key mismatch for {identity}"]
+                return [f"identities/trust_store.test.json Ed25519 key mismatch for {identity}"]
     except Exception as exc:
-        return [f"trust_store.json cannot be validated ({type(exc).__name__})"]
+        return [f"identities/trust_store.test.json cannot be validated ({type(exc).__name__})"]
     return []
 
 
 def provision(force: bool) -> None:
-    command = [sys.executable, str(ROOT / "scripts" / "provision_identities.py")]
+    command = [
+        sys.executable,
+        str(ROOT / "scripts" / "provision_identities.py"),
+        "--identities-dir", str(ROOT / "identities"),
+        "--trust-store", str(ROOT / "identities" / "trust_store.test.json"),
+    ]
     if force:
         command.append("--force")
         print(
@@ -163,7 +168,7 @@ def main() -> int:
         return 2
 
     print("[setup] Local test identity material is consistent.", flush=True)
-    print("[setup] If trust_store.json was regenerated, keep that local change uncommitted.", flush=True)
+    print("[setup] Keep identities/trust_store.test.json local; it is git-ignored.", flush=True)
     print("\nRunning mandatory security tests T1-T9...\n", flush=True)
     result = subprocess.run(
         [sys.executable, "-m", "tests.run_security_tests"],

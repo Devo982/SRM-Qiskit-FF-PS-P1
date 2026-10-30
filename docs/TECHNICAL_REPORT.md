@@ -48,7 +48,7 @@ prototype: Section 7 states the assumptions and limitations explicitly.
 | Classical baseline for comparison | Suite `QFF26-CLASSICAL-1` |
 | HKDF-SHA256, direction-separated, explicit | `protocol/keyschedule.py` (vetted `cryptography` HKDF API; RFC 5869 vectors and independent-oracle regression checks) |
 | AES-256-GCM record layer with replay defense | `protocol/records.py` |
-| T1–T9 automated security tests → organizer summary + detailed evidence | `tests/run_security_tests.py` → `results/security_tests.csv` (nine-row organizer summary) and `results/security_tests_detailed.csv` (52 individual checks) |
+| T1–T9 automated security tests → organizer summary + detailed evidence | `tests/run_security_tests.py` → `results/security_tests.csv` (nine-row organizer summary) and `results/security_tests_detailed.csv` (54 individual checks) |
 | 3 official payloads (1 KB / 100 KB / 10 MB) with SHA-256 | `data/payloads/payload_sha256.txt` (manifest committed; `*.bin` regenerated locally) |
 | Benchmarks, ≥10 successful handshakes, median/IQR/p95, measured message sizes, payload timings/overhead | `bench/bench_handshake.py`, `bench/bench_payload.py` → `results/tables/handshake_results.csv`, `bench_handshake.csv`, `payload_results.csv`, `bench_payload.csv` |
 | UX layer with zero key contact | `cli/adapter.py` + invariants I1–I5 in `docs/INTEGRATION_CONTRACT.md` |
@@ -296,16 +296,13 @@ version u16 (0x0001) | type u8 (0x01 app-data, 0x02 close)
 ## 4. Security model
 
 ### 4.1 Trust model
+The protocol authenticates each identity by looking up its verification keys in the trust store supplied to the channel. Each entry associates the identity with an expected role (`client` or `server`) and suite-specific verification keys. The repository includes the committed root `trust_store.json` as a public-only reference trust-store artifact. For reproducible local tests and the in-process CLI demo, `scripts/provision_identities.py` creates local Alice/Bob signing key pairs under git-ignored `identities/` and writes their matching public verification keys to `identities/trust_store.test.json`. The security launcher, test runner and CLI demo use this generated test trust store; local provisioning does not modify the committed root file.
 
-Identities are pinned in `trust_store.json` (committed, public keys only): each
-entry carries a role (`client` / `server`) and one verification key per suite.
-**Authentication is MUTUAL:** the server signs the handshake transcript (`sig_S`)
-and the client also signs the transcript (`sig_C`); neither endpoint is treated as
-server-authenticated-only, and both signature checks are verified by the peer.
-Private keys live only in git-ignored `identities/*.json` (ML-DSA-65 stored as
-its 32-byte seed, restored via `from_seed_bytes`; Ed25519 as raw 32 bytes).
-Trust-store distribution and integrity are out-of-band (Section 7).
+The generated test trust store is a local test fixture derived from the corresponding local test identities. It is not an independently authenticated production trust bootstrap. A real deployment must distribute and pin verification keys through an authenticated out-of-band mechanism, with suitable rotation and revocation procedures.
 
+**Authentication is MUTUAL:** the server signs the handshake transcript (`sig_S`) and the client also signs the transcript (`sig_C`); neither endpoint is treated as server-authenticated-only, and both signature checks are verified by the peer.
+
+Private keys live only in git-ignored `identities/alice.json` and `identities/bob.json` (ML-DSA-65 stored as its 32-byte seed, restored via `from_seed_bytes`; Ed25519 as raw 32 bytes).
 ### 4.2 Attacker capabilities considered
 
 The battery models an active attacker with full control of the wire: bit flips
@@ -532,8 +529,10 @@ signatures plus Finished key confirmation), and the implementation has not been
 independently audited. Explicit assumptions and limitations:
 
 1. **Trust store distribution and integrity are out of band.** The committed
-   `trust_store.json` pins demo identities; a real deployment needs a PKI or
-   pre-distribution story, revocation, and rotation (none implemented).
+   `trust_store.json` is a public-only reference artifact. Local tests and
+   the CLI demo use the generated `identities/trust_store.test.json` matching
+   their local test keys. A real deployment needs an independently authenticated
+   trust-store distribution mechanism, revocation, and rotation (none implemented).
 2. **The OS CSPRNG is trusted** (`os.urandom`, `cryptography` key generation).
 3. **No side-channel hardening** beyond constant-time `hmac.compare_digest` and
    the library's native primitives. Python-level timing variance is possible.
@@ -567,10 +566,9 @@ independently audited. Explicit assumptions and limitations:
     key bytes never appear on stdout, in CSVs, or in assertions.
 
 ## 8. Reproduction guide
-
-Clean clone on Python 3.13. The analysis dependencies
-are pinned in requirements.txt; requirements-lock.txt fixes resolved versions and hashes;
-`cryptography==50.0.2` remains the exact organizer pin.
+Clean clone on Python 3.13. `requirements.txt` specifies direct dependencies;
+`requirements-lock.txt` is generated from it and fixes resolved versions and hashes.
+Install with the lock file. `cryptography==50.0.2` remains the exact organizer pin.
 
 ```bash
 git clone https://github.com/Devo982/SRM-Qiskit-FF-PS-P1.git
@@ -585,7 +583,7 @@ source .venv/bin/activate
 python -m pip install -r requirements-lock.txt
 
 python common/env_check.py              # -> READY - environment is correct.
-python scripts/provision_identities.py  # identities/ (git-ignored) + trust_store.json
+python scripts/provision_identities.py  # creates identities/ + identities/trust_store.test.json; root trust_store.json is untouched
 python -m tests.run_security_tests      # 54 detailed checks, all expected PASS
 python -m tests.test_regressions        # RFC 5869 vectors + replay-window regression
 python -m cli.demo --suite QFF26-PQC-1  # metadata-only end-to-end demo
@@ -651,12 +649,14 @@ already been implemented or validated.
 
 **Committed:** all source (`protocol/`, `tests/`, `cli/`, `bench/`, `scripts/`,
 `common/`), `docs/INTEGRATION_CONTRACT.md`, this report, `README.md`,
-`requirements.txt` (kit pin `cryptography==50.0.2`), `trust_store.json` (public
-keys only), `data/payloads/payload_sha256.txt`, `results/security_tests.csv`,
+`requirements.txt`, `requirements-lock.txt`, and the root
+`trust_store.json` (public-only reference artifact), plus
+`data/payloads/payload_sha256.txt`, `results/security_tests.csv`,
 `results/security_tests_detailed.csv`, `results/tables/*.csv`,
 `platform_A_info.json`.
 
-**Never committed:** `identities/*.json` (private keys/seeds — enforced by
-`.gitignore` + `git check-ignore` at provisioning time), `data/payloads/*.bin`
-(regenerable from the deterministic generator, verified against the committed
-SHA-256 manifest), virtualenvs and caches.
+**Never committed:** the entire `identities/` directory (local private
+identity keys/seeds and generated public `trust_store.test.json`; enforced
+by `.gitignore`), `data/payloads/*.bin` (regenerable from the deterministic
+generator and verified against the committed SHA-256 manifest), virtualenvs
+and caches.

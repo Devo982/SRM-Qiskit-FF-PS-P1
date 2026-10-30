@@ -130,9 +130,9 @@ The full benchmark command above is the recommended path. For diagnosis, these i
 | Regression vectors and replay-window checks | `.\.venv\Scripts\python.exe -m tests.test_regressions` | `.venv/bin/python -m tests.test_regressions` |
 | PQC end-to-end demo | `.\.venv\Scripts\python.exe -m cli.demo --suite QFF26-PQC-1` | `.venv/bin/python -m cli.demo --suite QFF26-PQC-1` |
 
-The security launcher verifies Alice/Bob test identity key pairs and the local trust store, repairs missing or inconsistent local test identities when needed, and then runs T1–T9. Separate provisioning is not normally needed. The expected success line is `ALL TESTS PASSED: 54/54 detailed checks`; elapsed time varies by machine.
+The security launcher verifies Alice/Bob test identity key pairs and the matching local test trust store at `identities/trust_store.test.json`. If local test identities or that store are missing or inconsistent, it repairs the local test material and then runs T1–T9. It does not modify the committed root `trust_store.json`. The CLI demo also explicitly uses the generated local test trust store. The expected success line is `ALL TESTS PASSED: 54/54 detailed checks`; elapsed time varies by machine.
 
-Provisioning can regenerate local `trust_store.json`; do not commit that local test file. The test suite refreshes result CSVs, so inspect `git status --short` after diagnostic commands and do not commit generated changes unless the evidence was intentionally regenerated and reviewed. `common/env_check.py` writes `platform_A_info.json` by default; do not label metadata collected on a different laptop as Platform A.
+The committed root `trust_store.json` is a public-only reference trust-store artifact. The automatically provisioned local tests and CLI demo use `identities/trust_store.test.json`, generated to match the local private Alice/Bob test identities in the same git-ignored directory. This generated test fixture is not an independently authenticated production trust bootstrap. For a clean clone, run `python scripts/provision_identities.py` before directly invoking `python -m tests.run_security_tests` or `python -m cli.demo`; the security launcher provisions missing local test material automatically. The test suite refreshes result CSVs, so inspect `git status --short` after diagnostic commands and do not commit generated changes unless the evidence was intentionally regenerated and reviewed. `common/env_check.py` writes `platform_A_info.json` by default; do not label metadata collected on a different laptop as Platform A.
 
 ## Protocol and security summary
 
@@ -208,15 +208,15 @@ An ordinary teammate laptop should be labelled `LOCAL`, not Platform B. Platform
 
 ## Dependencies
 
-`requirements.txt` is authoritative for installation. The key cryptographic dependency is the exact organizer pin `cryptography==50.0.2`. Current compatible bounds for the analysis/benchmark libraries are:
+`requirements.txt` defines the direct project dependencies and preserves the organizer's exact cryptographic pin. `requirements-lock.txt` is generated from it with `uv`, pins resolved dependency versions and includes hashes. The README setup commands install from `requirements-lock.txt` for reproducible dependency resolution; do not treat the two files as interchangeable.
 
-| Package | Requirement |
+| Package | Direct requirement |
 |---|---|
 | `cryptography` | `==50.0.2` |
-| `psutil` | `>=5.9` |
-| `numpy` | `>=1.24` |
-| `pandas` | `>=2.0` |
-| `matplotlib` | `>=3.7` |
+| `psutil` | `==7.2.2` |
+| `numpy` | `==2.5.4` |
+| `pandas` | `==3.1.0` |
+| `matplotlib` | `==3.11.2` |
 
 The recorded Platform A environment used Python 3.13.17, cryptography 50.0.2, psutil 7.2.2, NumPy 2.5.4, pandas 3.1.0 and matplotlib 3.11.2. Python 3.13.17 is the interpreter version exercised for the committed Platform A results; Python 3.13 is the only supported runtime for this submission.
 
@@ -236,7 +236,7 @@ The recorded Platform A environment used Python 3.13.17, cryptography 50.0.2, ps
 - **`No matching distribution` or `cryptography==50.0.2` will not install:** verify that the virtual environment uses Python 3.13 and that `requirements.txt` retains the organizer pin. On Intel macOS (x86_64) only, if a compatible wheel cannot be installed, see the [Intel Mac environment helper](scripts/QFF2026_intel_mac_env_setup.sh); it is not a general Windows, Linux or Apple Silicon setup path.
 - **Wrong Python still runs:** check `.venv/bin/python --version` on macOS/Linux or `.\.venv\Scripts\python.exe --version` in PowerShell, from the repository root. Always use the interpreter inside `.venv`.
 - **`uv` not found:** it is optional. Use the `venv` and `pip` setup commands above.
-- **Local files changed after tests:** inspect `git status --short`. Keep generated run bundles, regenerated `trust_store.json`, local machine metadata and unreviewed result CSV changes out of the source commit.
+- **Local files changed after tests:** inspect `git status --short`. Keep generated run bundles, the git-ignored `identities/` directory (private test keys and `trust_store.test.json`), local machine metadata and unreviewed result CSV changes out of the source commit. Local test provisioning does not rewrite the committed root `trust_store.json`.
 
 ## Repository layout
 
@@ -252,7 +252,7 @@ bench/bench_payload.py              payload encryption/decryption timing and thr
 scripts/run_security_suite.py       identity repair + T1–T9 test launcher
 scripts/run_reproducible_benchmarks.py  one-command validation and isolated evidence bundle
 scripts/make_figures.py             figures from CSV inputs
-scripts/provision_identities.py     local test identities and public trust store
+scripts/provision_identities.py     local test identities + identities/trust_store.test.json
 docs/TECHNICAL_REPORT.md            methodology, evidence and analysis
 docs/INTEGRATION_CONTRACT.md        UX/protocol integration contract
 results/                            committed CSV evidence and figures

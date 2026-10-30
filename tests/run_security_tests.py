@@ -10,7 +10,7 @@ internal functions with pre-broken values. Results are written to
 results/security_tests.csv and printed as a table.
 
 Requires: scripts/provision_identities.py to have been run once (identities/ +
-trust_store.json). This tool asserts via PUBLIC confirmation status only
+identities/trust_store.test.json). This tool asserts via PUBLIC confirmation status only
 (states, failure categories, sizes) - key bytes are never printed.
 """
 from __future__ import annotations
@@ -87,11 +87,16 @@ def check(tid: str, sub: str, suite: str, scenario: str, expected: str,
 # ---------------------------------------------------------------------------
 
 def load_context() -> tuple[dict, dict]:
-    trust_path = REPO_ROOT / "trust_store.json"
+    trust_path = REPO_ROOT / "identities" / "trust_store.test.json"
     idir = REPO_ROOT / "identities"
-    if not trust_path.exists() or not (idir / "alice.json").exists():
+    if (
+        not trust_path.exists()
+        or not (idir / "alice.json").exists()
+        or not (idir / "bob.json").exists()
+    ):
         raise SystemExit(
-            "FAIL - identities not provisioned. Run: python scripts/provision_identities.py"
+            "FAIL - local test identities are not provisioned. "
+            "Run: python scripts/provision_identities.py"
         )
     trust = json.loads(trust_path.read_text(encoding="utf-8"))
     return trust, {"alice": idir / "alice.json", "bob": idir / "bob.json"}

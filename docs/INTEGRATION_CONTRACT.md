@@ -16,8 +16,12 @@ secrets. Everything the UX layer may do is expressible through the façade in §
 - **I1** The UX layer never imports crypto modules and never observes private keys,
   shared secrets, traffic keys, or nonces - in memory, files, logs, or UI.
 - **I2** All private key material lives under `identities/` (git-ignored) and is
-  created only by `scripts/provision_identities.py`. `trust_store.json` (public
-  verification keys only) is the single committed trust anchor.
+  created only by `scripts/provision_identities.py`. The committed root
+  `trust_store.json` is a public-only reference artifact and is not rewritten
+  by local test provisioning. The local security suite and `cli.demo` use the
+  matching generated `identities/trust_store.test.json` alongside the local
+  test keys. This generated test fixture is not a production trust bootstrap;
+  a deployment must supply an independently authenticated trust store.
 - **I3** The UX layer interacts exclusively through the channel façade (§4):
   open / send / recv / close plus typed error names. No other import path is
   supported or stable.

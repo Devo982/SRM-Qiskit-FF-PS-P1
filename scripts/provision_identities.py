@@ -3,11 +3,11 @@
 
 Generates fresh signing keypairs for client:alice and server:bob for BOTH
 suites, writes private key files into identities/ (git-ignored - nothing
-secret is ever committed) and the public trust_store.json at the repo root.
+secret is ever committed) and a matching test-only public trust store at identities/trust_store.test.json. The committed root trust_store.json is never modified by local test provisioning.
 
     python scripts/provision_identities.py [--force]
 
-trust_store.json maps identity -> {role, verification keys per suite}.
+The generated test trust store maps identity -> {role, verification keys per suite}.
 Verification keys NEVER travel on the wire; verifiers look up pinned keys.
 This tool prints metadata only - private key bytes are never displayed.
 """
@@ -42,8 +42,9 @@ def main() -> None:
         help="output directory for private identity files (default: identities/)",
     )
     parser.add_argument(
-        "--trust-store", default=str(REPO_ROOT / "trust_store.json"),
-        help="output path for the public trust store (default: trust_store.json)",
+        "--trust-store", default=None,
+        help="output path for the public trust store "
+             "(default: <identities-dir>/trust_store.test.json)",
     )
     args = parser.parse_args()
 
@@ -78,9 +79,14 @@ def main() -> None:
             },
         }
 
-    tpath = Path(args.trust_store)
+    tpath = (
+        Path(args.trust_store)
+        if args.trust_store
+        else idir / "trust_store.test.json"
+    )
+    tpath.parent.mkdir(parents=True, exist_ok=True)
     tpath.write_text(json.dumps(trust, indent=2) + "\n", encoding="utf-8")
-    print(f"  wrote {tpath} (public trust anchor - committed)")
+    print(f"  wrote {tpath} (local test trust store - git-ignored)")
     print("provisioning complete: 2 identities, 2 suites each; no secrets printed or committed")
 
 
