@@ -139,11 +139,11 @@ def run_security_and_capture(run_dir: Path) -> None:
         raise RunFailure(f"Mandatory T1-T9 security suite failed (exit {rc}); see logs/security_suite.log")
     log_path = run_dir / "logs" / "security_suite.log"
     log_text = log_path.read_text(encoding="utf-8") if log_path.is_file() else ""
-    if "ALL TESTS PASSED: 52/52 detailed checks" not in log_text:
-        raise RunFailure("Security command exited successfully but did not report 52/52 passing detailed checks.")
+    if "ALL TESTS PASSED: 54/54 detailed checks" not in log_text:
+        raise RunFailure("Security command exited successfully but did not report 54/54 passing detailed checks.")
     detailed_path = run_dir / "security" / "security_tests_detailed.csv"
-    if not detailed_path.is_file() or len(read_csv(detailed_path)) != 52:
-        raise RunFailure("Security result snapshot is missing or does not contain 52 detailed checks.")
+    if not detailed_path.is_file() or len(read_csv(detailed_path)) != 54:
+        raise RunFailure("Security result snapshot is missing or does not contain 54 detailed checks.")
 
 
 def git_metadata() -> dict[str, Any]:

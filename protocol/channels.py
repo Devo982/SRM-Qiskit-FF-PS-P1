@@ -398,6 +398,11 @@ class ServerChannel(BaseChannel):
         values = parse_message(frame, M1_TAGS)  # strict
         self._check_version(values[TAG_PROTO_VERSION])
         suite = resolve_suite(values[TAG_SUITE_ID], self._allowed)  # policy first (T9)
+        if suite.suite_id != self._suite_id_cfg:
+            raise PolicyViolation(
+                f"received suite {suite.suite_id!r} differs from server "
+                f"local policy {self._suite_id_cfg!r}"
+            )
         self._suite = suite
 
         id_c = values[0x03].decode("utf-8", errors="replace")

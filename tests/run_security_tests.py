@@ -473,6 +473,47 @@ def t9(suite, other_suite, trust, a_sk, b_sk) -> None:
           f"client:{client.failure_category},established={client.established or server.established}",
           ok, client.failure_detail or "")
 
+    # (c) A valid alternate suite in M1 must not override server local policy.
+    other_a_sk = load_identity_private_keys(
+        REPO_ROOT / "identities" / "alice.json", other_suite
+    )
+    wire = InMemoryWire()
+    client = ClientChannel(
+        suite_id=other_suite.suite_id,
+        trust_store=trust,
+        identity="client:alice",
+        sign_sk=other_a_sk,
+        endpoint=wire.client_ep,
+        allowed_suites=frozenset(SUITES.keys()),
+    )
+    server = ServerChannel(
+        suite_id=sid,
+        trust_store=trust,
+        identity="server:bob",
+        sign_sk=b_sk,
+        endpoint=wire.server_ep,
+        allowed_suites=frozenset(SUITES.keys()),
+    )
+
+    client.start()
+    wire.pump(client, server)
+
+    ok = (
+        server.failure_category == "PolicyViolation"
+        and not client.established
+        and not server.established
+    )
+    check(
+        "T9",
+        "c-server-local-policy-mismatch",
+        sid,
+        "M1 selects a valid suite different from server local policy",
+        "server:PolicyViolation,no-establishment",
+        f"server:{server.failure_category},client_established={client.established}",
+        ok,
+        server.failure_detail or "",
+    )
+
 
 # ---------------------------------------------------------------------------
 
@@ -553,8 +594,9 @@ def write_csv() -> Path:
             "were rejected in both suites (6/6 subchecks)."
         ),
         "T9": (
-            "Unknown suite IDs and valid-suite substitutions were rejected "
-            "in both suites; no fallback occurred."
+            "Unknown suite IDs, server-echo substitutions, and valid "
+            "alternate-suite M1 messages conflicting with server local "
+            "policy were rejected in both suites; no fallback occurred."
         ),
     }
 
@@ -573,7 +615,7 @@ def write_csv() -> Path:
             "a-record-replay", "b-handshake-replay",
             "c-m1-replay-cache",
         },
-        "T9": {"a-unknown-suite", "b-suite-echo-substitution"},
+        "T9": {"a-unknown-suite", "b-suite-echo-substitution", "c-server-local-policy-mismatch"},
     }
     expected_suites = {"QFF26-PQC-1", "QFF26-CLASSICAL-1"}
 
@@ -701,7 +743,7 @@ def main() -> None:
     )
     summary_structure_ok = (
         actual_summary_ids == expected_summary_ids
-        and len(ROWS) == 52
+        and len(ROWS) == 54
         and not unexpected_detail_ids
     )
     coverage_failures = [

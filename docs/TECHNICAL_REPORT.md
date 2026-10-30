@@ -4,7 +4,7 @@
 **Repo:** `Devo982/SRM-Qiskit-FF-PS-P1` · **Track:** 5 — Post-Quantum Cryptography
 **Platform of record:** Intel Mac (x86_64 native), macOS 15.8.2, CPython 3.13.17,
 `cryptography==50.0.2` (kit pin; see `platform_A_info.json` for the recorded
-install origin). **Supported Python:** 3.11–3.13 (3.13 recommended). The recorded Platform A run used CPython 3.13.17; Python 3.11 and 3.12 are declared targets but were not separately exercised for this submission.
+install origin). **Supported Python:** 3.13 only. The recorded Platform A run used CPython 3.13.17.
 
 ---
 
@@ -19,8 +19,8 @@ server-to-client chains derived independently, and one AES-256-GCM record layer.
 Suite selection is a local policy decision on each endpoint; it is never
 negotiated on the wire.
 
-Security is evaluated by a 26-check fault-injection battery (T1–T9), executed
-twice — once per suite — for 52/52 passing checks. Every fault is injected on the
+Security is evaluated by a 27-check fault-injection battery (T1–T9), executed
+twice — once per suite — for 54/54 passing checks. Every fault is injected on the
 bytes between two real endpoints, so every mutation travels the real parse,
 policy, trust-store, signature, and key-confirmation path. The battery asserts
 via public confirmation status only (states, failure categories, payload sizes);
@@ -52,7 +52,7 @@ prototype: Section 7 states the assumptions and limitations explicitly.
 | 3 official payloads (1 KB / 100 KB / 10 MB) with SHA-256 | `data/payloads/payload_sha256.txt` (manifest committed; `*.bin` regenerated locally) |
 | Benchmarks, ≥10 successful handshakes, median/IQR/p95, measured message sizes, payload timings/overhead | `bench/bench_handshake.py`, `bench/bench_payload.py` → `results/tables/handshake_results.csv`, `bench_handshake.csv`, `payload_results.csv`, `bench_payload.csv` |
 | UX layer with zero key contact | `cli/adapter.py` + invariants I1–I5 in `docs/INTEGRATION_CONTRACT.md` |
-| Reproducible judge path | README setup and quickstart; security battery (52/52) and regression commands |
+| Reproducible judge path | README setup and quickstart; security battery (54/54) and regression commands |
 
 ## 3. Protocol design (v2)
 
@@ -345,7 +345,7 @@ downgrade risks have been eliminated.
 index (c2s #0 = M1, #1 = M3, #2+ = app records; s2c #0 = M2, #1+ = app records)
 and can flip a byte, duplicate, substitute, or splice frames. Assertions use
 public confirmation status only: channel state, `failure_category`, delivery
-flags, and payload equality — never key bytes. The matrix comprises 26 checks per suite × 2 suites = 52 detailed checks. The
+flags, and payload equality — never key bytes. The matrix comprises 27 checks per suite × 2 suites = 54 detailed checks. The
 nine-row organizer-format summary is written to `results/security_tests.csv`; the
 individual checks are retained in `results/security_tests_detailed.csv`. Beyond the battery, `tests/test_regressions.py`
 pins the key schedule to the RFC 5869 Appendix A test vectors and an
@@ -353,7 +353,7 @@ independent oracle, and regression-tests the replay window's
 commit-after-authentication rule (a forged far-ahead-sequence record must not
 mutate window state).
 
-### 5.2 Results (both suites pass identically — 52/52)
+### 5.2 Results (both suites pass identically — 54/54)
 
 | ID | Scenario (all injected on the wire) | Expected | Observed | PQC-1 | CLASSICAL-1 |
 |---|---|---|---|---|---|
@@ -568,8 +568,8 @@ independently audited. Explicit assumptions and limitations:
 
 ## 8. Reproduction guide
 
-Clean clone on Python 3.11–3.13 (3.13 recommended). The analysis dependencies
-use minimum compatible versions for the declared Python 3.11–3.13 range;
+Clean clone on Python 3.13. The analysis dependencies
+are pinned in requirements.txt; requirements-lock.txt fixes resolved versions and hashes;
 `cryptography==50.0.2` remains the exact organizer pin.
 
 ```bash
@@ -582,11 +582,11 @@ python -m venv .venv
 .venv\Scripts\activate
 # macOS/Linux: run this line instead of the Windows activation line.
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-lock.txt
 
 python common/env_check.py              # -> READY - environment is correct.
 python scripts/provision_identities.py  # identities/ (git-ignored) + trust_store.json
-python -m tests.run_security_tests      # 52 detailed checks, all expected PASS
+python -m tests.run_security_tests      # 54 detailed checks, all expected PASS
 python -m tests.test_regressions        # RFC 5869 vectors + replay-window regression
 python -m cli.demo --suite QFF26-PQC-1  # metadata-only end-to-end demo
 python bench/bench_handshake.py --runs 100

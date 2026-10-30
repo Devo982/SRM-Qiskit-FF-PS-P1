@@ -1,15 +1,15 @@
 # QFF 2026 PS-P1 - Phase 2 requirements
-# Python 3.11-3.13 supported (3.13 recommended); analysis minimums target this range.
+# Python 3.13 is the supported and tested runtime for this pinned environment.
 # Validated on Platform A with CPython 3.13.17.
 
 # Kit pin - do not change:
 cryptography==50.0.2
 
-# Analysis / benchmarking stack (compatible minimums for Python 3.11-3.13):
-psutil>=5.9
-numpy>=1.24
-pandas>=2.0
-matplotlib>=3.7
+# Analysis / benchmarking stack: exact versions from the recorded local environment.
+psutil==7.2.2
+numpy==2.5.4
+pandas==3.1.0
+matplotlib==3.11.2
 
 # Optional per kit FAQ (pqcrypto is NOT required for PS-P1):
 # pqcrypto==1.0.0
