@@ -46,12 +46,17 @@ secrets. Everything the UX layer may do is expressible through the façade in §
   `RecordReplayDetected`, `RecordAuthenticationError`, `SessionExhausted`.
 - Implemented façade: [`cli/adapter.py`](../cli/adapter.py) (`SecureChannelFacade`) exposes `open`, `send`, `recv`, `close`, and metadata-only `state`, `failure_category`, and `established` properties.
 - Runnable end-to-end example: [`cli/demo.py`](../cli/demo.py), invoked with `python -m cli.demo --suite QFF26-PQC-1`.
+- Optional separate-process TCP demonstration: [`cli/tcp_demo.py`](../cli/tcp_demo.py), using the existing `SecureChannelFacade` with the socket-backed endpoint in [`protocol/tcp_wire.py`](../protocol/tcp_wire.py). TCP framing adds a four-byte big-endian length prefix outside the serialized protocol frame. The cryptographic protocol TLV format and channel state machine remain unchanged.
 
 ## 5. Test ownership
 
-T1-T9 live in `tests/` and run via a single command; results append to
-`results/security_tests.csv`. The UX layer consumes the CSV summary; it is never a
-participant in the tests.
+T1–T9 live in `tests/` and run through `scripts/run_security_suite.py`. The security battery produces 54 detailed checks across both suites, with results written to `results/security_tests.csv` and `results/security_tests_detailed.csv`.
+
+After T1–T9 pass, the security launcher executes `tests.test_tcp_transport`, which contains 12 TCP framing and transport unit tests. These are reported separately and are not included in the 54 T1–T9 security checks.
+
+The optional two-process TCP loopback demonstration is implemented in `cli/tcp_demo.py` and run manually in two terminal windows. It is a functional transport demonstration, not a network benchmark.
+
+The UX layer consumes the T1–T9 CSV summary; it is never a participant in the tests.
 
 ## 6. Change process
 

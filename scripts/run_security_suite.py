@@ -175,7 +175,16 @@ def main() -> int:
         cwd=ROOT,
         check=False,
     )
-    return result.returncode
+    if result.returncode != 0:
+        return result.returncode
+
+    print("\nRunning TCP transport unit tests...\n", flush=True)
+    transport_result = subprocess.run(
+        [sys.executable, "-m", "unittest", "-v", "tests.test_tcp_transport"],
+        cwd=ROOT,
+        check=False,
+    )
+    return transport_result.returncode
 
 
 if __name__ == "__main__":

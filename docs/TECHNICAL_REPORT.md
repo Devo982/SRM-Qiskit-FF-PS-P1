@@ -155,6 +155,14 @@ message sizes, not a ratio of cryptographic security strength.
 References: https://csrc.nist.gov/pubs/fips/203/final and
 https://csrc.nist.gov/pubs/fips/204/final.
 
+**Optional TCP transport envelope.** The implementation in `protocol/tcp_wire.py` provides a synchronous TCP endpoint for running Alice and Bob as separate processes. Each serialized protocol frame is transmitted using a four-byte unsigned big-endian length prefix followed by the original frame bytes:
+
+`u32_be(frame_length) || serialized_protocol_frame`
+
+The length prefix belongs to the transport layer; it is not part of the protocol TLV message, handshake transcript, or signature input. The receiver reads the complete header and frame body, handling TCP stream fragmentation and multiple frames arriving in the same stream. Zero-length, incomplete, and oversized frames are rejected. The default maximum frame size is 16 MiB.
+
+The TCP adapter does not change the cryptographic protocol, protocol frame format, channel state machine, or existing `InMemoryWire` implementation.
+
 ### 3.4 Handshake flow and transcript binding
 
 ```
@@ -351,6 +359,8 @@ commit-after-authentication rule (a forged far-ahead-sequence record must not
 mutate window state).
 
 ### 5.2 Results (both suites pass identically — 54/54)
+
+**Additional TCP transport tests.** The separate `tests/test_tcp_transport.py` module contains 12 unit tests covering four-byte big-endian length-prefix encoding, fragmented reads, multiple frames in a stream, clean EOF, incomplete headers and bodies, zero-length and oversized frames, invalid frame-size configuration, and a real local socket-pair round trip. These tests validate transport framing separately and are not included in the 54 detailed T1–T9 security checks.
 
 | ID | Scenario (all injected on the wire) | Expected | Observed | PQC-1 | CLASSICAL-1 |
 |---|---|---|---|---|---|
@@ -549,10 +559,15 @@ independently audited. Explicit assumptions and limitations:
    bounded by the u32 `ct_len` field and available memory; `SessionExhausted`
    ends the session at the configurable cap (default 2^40 records, hard cap
    2^63).
-9. **In-process wire for tests and benchmarks.** Frames are identical to what a
-   socket transport would carry; sockets, TLS-over-TLS comparisons, congestion,
-   and OS effects are out of scope. Numbers are single-machine (Intel Mac) and
-   not representative of network deployments.
+9. **In-process wire for T1–T9 tests and benchmarks; optional TCP loopback demonstration.**
+   T1–T9 and all published benchmark measurements continue to use
+   `InMemoryWire`. The optional `protocol/tcp_wire.py` endpoint provides
+   process-to-process communication using TCP with a four-byte big-endian
+   length prefix around each unchanged serialized protocol frame. Both
+   cryptographic suites have been successfully exercised between separate
+   Python processes over `127.0.0.1`. This demonstrates local TCP transport
+   functionality, not a two-device network deployment. Network latency,
+   packet loss, congestion and deployment effects have not been measured.
 10. **Auto-renegotiation after `SessionExhausted` is documented, not automated**;
     re-establishing is a fresh handshake by construction.
 11. **X25519 is modeled as a KEM** (ephemeral–ephemeral ECDH) to keep one state
@@ -591,6 +606,28 @@ python bench/bench_handshake.py --runs 100
 python bench/bench_payload.py --repeats 15
 python scripts/make_figures.py          # reads only results/tables/*.csv
 ```
+
+### Separate-process TCP demonstration
+
+After provisioning the local test identities, open two terminal windows from the repository root.
+
+**Terminal 1 — Bob/server:**
+
+```bash
+python -m cli.tcp_demo --role server --suite QFF26-PQC-1
+```
+
+**Terminal 2 — Alice/client:**
+
+```bash
+python -m cli.tcp_demo --role client --suite QFF26-PQC-1
+```
+
+Repeat both commands with `QFF26-CLASSICAL-1` to exercise the classical suite.
+
+The default server address is `127.0.0.1:8765`. The demonstration verifies mutual handshake establishment, application records in both directions, and authenticated close.
+
+This is a same-machine TCP loopback demonstration, not a two-device network benchmark. It does not qualify as Platform D evidence.
 
 `bench/bench_handshake.py --runs 100` writes `handshake_results.csv`,
 `bench_handshake.csv`, and successful per-trial rows in

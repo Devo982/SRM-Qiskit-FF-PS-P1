@@ -13,7 +13,7 @@
 
 ### Fresh clone → install dependencies → run all checks and benchmarks
 
-These are the complete commands, not just the final benchmark invocation. They clone the repo, create a clean virtual environment, install requirements, then run the environment check, T1–T9, both handshake suites, all three official payload cases, and figure generation. If any command fails, stop at that step and resolve the error before continuing.
+These are the complete commands, not just the final benchmark invocation. They clone the repository, create a clean virtual environment, install requirements, then run the environment check, T1–T9 security battery, TCP transport unit tests, both handshake suites, all three official payload cases, and figure generation. If any command fails, stop at that step and resolve the error before continuing.
 
 **Windows (PowerShell)**
 
@@ -60,7 +60,7 @@ The `&&` chain stops if any step fails. **Already cloned the repository?** Start
 
 ### Run benchmarks again (environment already installed)
 
-For later runs in an existing checkout with dependencies installed, use just this command from the repository root:
+For later runs in an existing checkout with dependencies installed, use just this command from the repository root.
 
 **Windows (PowerShell)**
 
@@ -116,7 +116,11 @@ Each run creates a unique directory and matching ZIP in `results/runs/`. The bun
 - figures rendered from that run's own CSVs;
 - a manifest and SHA-256 hashes for bundle artifacts.
 
-Default benchmark settings are 100 handshake trials per suite and 15 bidirectional rounds per payload and suite. The runner supports `--handshake-runs` and `--payload-repeats` when longer or shorter trials are needed. Timings are machine-dependent; reproducibility means the same procedure, checks, input payloads and evidence structure—not identical timing numbers across machines. The measurements in this project are **local/in-process, not real-network measurements**.
+Default benchmark settings are 100 handshake trials per suite and 15 bidirectional rounds per payload and suite. The runner supports `--handshake-runs` and `--payload-repeats` when longer or shorter trials are needed.
+
+Timings are machine-dependent; reproducibility means the same procedure, checks, input payloads and evidence structure—not identical timing numbers across machines. The measurements in this project are **local/in-process, not real-network measurements**.
+
+The one-command validation workflow runs the mandatory T1–T9 security battery and, after it passes, the 12 TCP transport unit tests. The command logs record both validation stages. The benchmark measurements themselves continue to use the existing in-process transport.
 
 The runner writes its benchmark artifacts inside each run bundle. It does not use the committed `results/tables/*.csv`, `results/figures/*.png`, or root `platform_A_info.json` as output targets. Run bundles are ignored by Git so local measurements do not accidentally replace the submitted Platform A evidence.
 
@@ -126,13 +130,116 @@ The full benchmark command above is the recommended path. For diagnosis, these i
 
 | Purpose | Windows (PowerShell) | macOS / Linux |
 |---|---|---|
-| Run T1–T9 only | `.\.venv\Scripts\python.exe scripts/run_security_suite.py` | `.venv/bin/python scripts/run_security_suite.py` |
+| Run T1–T9 + TCP transport tests | `.\.venv\Scripts\python.exe scripts/run_security_suite.py` | `.venv/bin/python scripts/run_security_suite.py` |
+| Run TCP transport tests only | `.\.venv\Scripts\python.exe -m unittest -v tests.test_tcp_transport` | `.venv/bin/python -m unittest -v tests.test_tcp_transport` |
 | Regression vectors and replay-window checks | `.\.venv\Scripts\python.exe -m tests.test_regressions` | `.venv/bin/python -m tests.test_regressions` |
-| PQC end-to-end demo | `.\.venv\Scripts\python.exe -m cli.demo --suite QFF26-PQC-1` | `.venv/bin/python -m cli.demo --suite QFF26-PQC-1` |
+| PQC in-process end-to-end demo | `.\.venv\Scripts\python.exe -m cli.demo --suite QFF26-PQC-1` | `.venv/bin/python -m cli.demo --suite QFF26-PQC-1` |
 
-The security launcher verifies Alice/Bob test identity key pairs and the matching local test trust store at `identities/trust_store.test.json`. If local test identities or that store are missing or inconsistent, it repairs the local test material and then runs T1–T9. It does not modify the committed root `trust_store.json`. The CLI demo also explicitly uses the generated local test trust store. The expected success line is `ALL TESTS PASSED: 54/54 detailed checks`; elapsed time varies by machine.
+The security launcher verifies Alice/Bob test identity key pairs and the matching local test trust store at `identities/trust_store.test.json`. If local test identities or that store are missing or inconsistent, it repairs the local test material and then runs T1–T9. It does not modify the committed root `trust_store.json`.
 
-The committed root `trust_store.json` is a public-only reference trust-store artifact. The automatically provisioned local tests and CLI demo use `identities/trust_store.test.json`, generated to match the local private Alice/Bob test identities in the same git-ignored directory. This generated test fixture is not an independently authenticated production trust bootstrap. For a clean clone, run `python scripts/provision_identities.py` before directly invoking `python -m tests.run_security_tests` or `python -m cli.demo`; the security launcher provisions missing local test material automatically. The test suite refreshes result CSVs, so inspect `git status --short` after diagnostic commands and do not commit generated changes unless the evidence was intentionally regenerated and reviewed. `common/env_check.py` writes `platform_A_info.json` by default; do not label metadata collected on a different laptop as Platform A.
+The CLI demo also explicitly uses the generated local test trust store.
+
+Expected validation output:
+
+```text
+ALL TESTS PASSED: 54/54 detailed checks
+
+Ran 12 tests
+OK
+```
+
+These are separate validation groups: 54 security checks and 12 TCP transport unit tests. They must not be represented as a combined 66-check security score.
+
+The committed root `trust_store.json` is a public-only reference trust-store artifact. The automatically provisioned local tests and CLI demo use `identities/trust_store.test.json`, generated to match the local private Alice/Bob test identities in the same git-ignored directory. This generated test fixture is not an independently authenticated production trust bootstrap.
+
+For a clean clone, run `python scripts/provision_identities.py` before directly invoking `python -m tests.run_security_tests` or `python -m cli.demo`; the security launcher provisions missing local test material automatically.
+
+The test suite refreshes result CSVs, so inspect `git status --short` after diagnostic commands and do not commit generated changes unless the evidence was intentionally regenerated and reviewed. `common/env_check.py` writes `platform_A_info.json` by default; do not label metadata collected on a different laptop as Platform A.
+
+## Separate-process TCP loopback demonstration
+
+The optional TCP demonstration runs Alice and Bob as **separate Python processes** using the existing secure-channel façade.
+
+Unlike the in-process demonstration, this runs one endpoint as a TCP server and the other as a TCP client. It reuses the existing cryptographic protocol and channel state machine. The transport layer is responsible only for delivering complete serialized protocol frames.
+
+### Run the PQC suite
+
+Open two terminal windows from the repository root.
+
+**Terminal 1 — Bob/server**
+
+macOS / Linux:
+
+```bash
+.venv/bin/python -m cli.tcp_demo --role server --suite QFF26-PQC-1
+```
+
+Windows (PowerShell):
+
+```powershell
+.\.venv\Scripts\python.exe -m cli.tcp_demo --role server --suite QFF26-PQC-1
+```
+
+Leave the server running.
+
+**Terminal 2 — Alice/client**
+
+macOS / Linux:
+
+```bash
+.venv/bin/python -m cli.tcp_demo --role client --suite QFF26-PQC-1
+```
+
+Windows (PowerShell):
+
+```powershell
+.\.venv\Scripts\python.exe -m cli.tcp_demo --role client --suite QFF26-PQC-1
+```
+
+The expected successful output includes:
+
+```text
+[client] mutual handshake complete; state=ESTABLISHED
+[client] c2s application record sent
+[client] s2c application record: bytes=55, match=True
+[client] authenticated close record sent; state=CLOSED
+```
+
+The server should independently report:
+
+```text
+[server] TCP connection accepted
+[server] mutual handshake complete; state=ESTABLISHED
+[server] c2s application record: bytes=48, match=True
+[server] s2c reply sent: bytes=55
+[server] authenticated close received; state=CLOSED
+```
+
+### Run the classical suite
+
+Repeat the same two-terminal procedure, replacing `QFF26-PQC-1` with `QFF26-CLASSICAL-1` in both commands.
+
+The local test identities and matching `identities/trust_store.test.json` must exist before starting either endpoint. Run `scripts/run_security_suite.py` first on a fresh checkout to provision and validate the required local test material.
+
+### TCP framing design
+
+The TCP adapter is implemented in `protocol/tcp_wire.py`.
+
+Each serialized protocol frame is transmitted using this transport envelope:
+
+```text
+4-byte unsigned big-endian frame length || serialized protocol frame
+```
+
+The length prefix allows the receiving endpoint to reconstruct individual frames from TCP's continuous byte stream. The receiver reads the exact header and body, handling TCP fragmentation and multiple frames arriving in the same stream read.
+
+The default maximum frame size is 16 MiB.
+
+The four-byte length prefix is a **transport envelope**, not part of the cryptographic protocol TLV format, handshake transcript, or signature input. The original protocol channel state machine and `InMemoryWire` remain unchanged.
+
+The demonstration uses `127.0.0.1:8765` by default and a 30-second connection timeout. It performs a local loopback connection on one machine.
+
+**Scope:** this is a functional separate-process TCP demonstration, not a two-device network experiment or network performance benchmark. It does not measure network RTT, packet loss, congestion, or deployment performance. The application payloads in this demo are small fixed messages; the official 1 KB, 100 KB and 10 MB payload benchmarks remain in-process measurements.
 
 ## Protocol and security summary
 
@@ -144,6 +251,7 @@ PS-P1 implements a **mutually authenticated** secure channel behind a shared cha
 - **Transcript protection:** signatures bind the endpoint identities, roles/session context, selected algorithms and exchanged handshake material. Each direction derives a separate traffic key.
 - **Replay/tampering behavior:** record replay and handshake replay are tested; modified handshake data, invalid signatures, modified ciphertext/tags, identity swaps and algorithm downgrade attempts must be rejected before untrusted plaintext is released.
 - **Suite selection:** suite policy is local to both endpoints; the protocol does not negotiate suites on the wire.
+- **Transport:** the optional TCP endpoint transports the existing serialized protocol frames without changing the cryptographic protocol or channel state machine.
 
 This is a competition prototype, **not a production secure-channel implementation or production security certification**.
 
@@ -163,6 +271,23 @@ This is a competition prototype, **not a production secure-channel implementatio
 
 The detailed test output documents the exact observed failure for each case. Replay-cache persistence across process restarts and deployment-wide trust-store operations are outside the guarantees of this prototype.
 
+### TCP transport unit tests
+
+The additional transport tests are in `tests/test_tcp_transport.py`.
+
+They verify:
+
+- Four-byte big-endian frame-length encoding.
+- Reconstruction of frames when TCP data arrives in fragmented reads.
+- Receiving multiple frames from a continuous byte stream.
+- Clean EOF handling.
+- Rejection of incomplete headers and frame bodies.
+- Rejection of zero-length and oversized frames.
+- Validation of configured maximum frame size.
+- A real local socket-pair round trip.
+
+These are transport tests. They do not replace or increase the 54 detailed T1–T9 security checks.
+
 ## Reference Platform A results
 
 The committed Platform A results are from run `20261029T211325Z`. They are local/in-process observations, not network latency or guarantees for other machines.
@@ -177,6 +302,8 @@ The committed Platform A results are from run `20261029T211325Z`. They are local
 | Transmitted record overhead | 32 B | 32 B |
 
 The official payload benchmark includes encrypt/decrypt timing, wire-record size, overhead and SHA-256 results for each of the three payloads. See the CSVs linked below for the underlying values; the CSVs are the source of truth and should not be hand-edited.
+
+The TCP loopback demonstration is not included in these benchmark figures.
 
 ## Result files
 
@@ -206,6 +333,8 @@ The official payload benchmark includes encrypt/decrypt timing, wire-record size
 
 An ordinary teammate laptop should be labelled `LOCAL`, not Platform B. Platform A figures remain separate and should not be overwritten by runs on other computers.
 
+**The TCP loopback demonstration does not qualify as Platform D evidence.** It runs both endpoints on the same machine through `127.0.0.1`. Platform D should only be marked as used after a justified deployment constraint has actually been applied and measured, with reproducible evidence.
+
 ## Dependencies
 
 `requirements.txt` defines the direct project dependencies and preserves the organizer's exact cryptographic pin. `requirements-lock.txt` is generated from it with `uv`, pins resolved dependency versions and includes hashes. The README setup commands install from `requirements-lock.txt` for reproducible dependency resolution; do not treat the two files as interchangeable.
@@ -224,40 +353,48 @@ The recorded Platform A environment used Python 3.13.17, cryptography 50.0.2, ps
 
 - This is a competition prototype, not a production security certification.
 - The handshake and payload timings use a local in-process wire; no two-machine network latency, packet loss, congestion or deployment benchmark has been collected.
+- The TCP demonstration is a same-machine loopback functional test, not a two-device network deployment.
 - Automatic renegotiation after `SessionExhausted` is not implemented; a fresh session needs a new handshake.
 - Python key zeroization is best-effort; Python's object and memory model cannot guarantee complete erasure.
 - Trust-store distribution, integrity, rotation and revocation are out-of-band and not solved here.
 - The prototype assumes a single trust domain; denial-of-service resistance and side-channel hardening are out of scope.
-- Each payload is sent as one record; chunking and fragmentation are not implemented.
+- Each application payload is sent as one protocol record; application-level chunking is not implemented. The TCP transport does handle fragmentation and coalescing of bytes in the underlying TCP stream when reconstructing length-prefixed frames.
+- The TCP demonstration currently uses a fixed local host and port by default; it is not a production server or deployment configuration.
 
 ## Troubleshooting
 
-- **`Python 3.15 not supported`:** the `.venv` was created with an unsupported interpreter. Follow setup steps 2–3 to install/find Python 3.13 and recreate `.venv`. Reinstalling packages into the old Python 3.15 environment will not fix the version guard. Do not remove the guard without validating the dependency stack and complete workflow on another version.
+- **`Python 3.15 not supported`:** the `.venv` was created with an unsupported interpreter. Follow setup steps above to install/find Python 3.13 and recreate `.venv`. Reinstalling packages into the old Python 3.15 environment will not fix the version guard. Do not remove the guard without validating the dependency stack and complete workflow on another version.
 - **`No matching distribution` or `cryptography==50.0.2` will not install:** verify that the virtual environment uses Python 3.13 and that `requirements.txt` retains the organizer pin. On Intel macOS (x86_64) only, if a compatible wheel cannot be installed, see the [Intel Mac environment helper](scripts/QFF2026_intel_mac_env_setup.sh); it is not a general Windows, Linux or Apple Silicon setup path.
 - **Wrong Python still runs:** check `.venv/bin/python --version` on macOS/Linux or `.\.venv\Scripts\python.exe --version` in PowerShell, from the repository root. Always use the interpreter inside `.venv`.
 - **`uv` not found:** it is optional. Use the `venv` and `pip` setup commands above.
+- **TCP server connection refused:** start the server command before running the client; verify both processes use the same host and port.
+- **TCP address already in use:** check whether an earlier TCP demo server is still running. Stop that process before starting another server on the same port.
+- **TCP test identity material missing:** run `scripts/run_security_suite.py` to provision and validate local Alice/Bob identities and `identities/trust_store.test.json`.
 - **Local files changed after tests:** inspect `git status --short`. Keep generated run bundles, the git-ignored `identities/` directory (private test keys and `trust_store.test.json`), local machine metadata and unreviewed result CSV changes out of the source commit. Local test provisioning does not rewrite the committed root `trust_store.json`.
 
 ## Repository layout
 
 ```text
-common/env_check.py                 environment contract and primitive self-test
-protocol/                           TLV, suites, key schedule, record layer, state machines
-cli/adapter.py                      UX facade / integration boundary
-cli/demo.py                         metadata-only end-to-end demo
-tests/run_security_tests.py         T1–T9 fault-injection tests
-tests/test_regressions.py           HKDF vectors and replay-window regressions
-bench/bench_handshake.py            handshake latency, serialized sizes, raw samples
-bench/bench_payload.py              payload encryption/decryption timing and throughput
-scripts/run_security_suite.py       identity repair + T1–T9 test launcher
-scripts/run_reproducible_benchmarks.py  one-command validation and isolated evidence bundle
-scripts/make_figures.py             figures from CSV inputs
-scripts/provision_identities.py     local test identities + identities/trust_store.test.json
-docs/TECHNICAL_REPORT.md            methodology, evidence and analysis
-docs/INTEGRATION_CONTRACT.md        UX/protocol integration contract
-results/                            committed CSV evidence and figures
-data/payloads/payload_sha256.txt    official payload SHA-256 manifest
-Phase One/                          archived Phase 1 submission material
+common/env_check.py                    environment contract and primitive self-test
+protocol/                               TLV, suites, key schedule, record layer, state machines
+protocol/tcp_wire.py                    synchronous TCP frame transport
+cli/adapter.py                           UX facade / integration boundary
+cli/demo.py                              metadata-only in-process end-to-end demo
+cli/tcp_demo.py                          separate-process TCP loopback demonstration
+tests/run_security_tests.py              T1–T9 fault-injection tests
+tests/test_tcp_transport.py              TCP framing and socket transport unit tests
+tests/test_regressions.py                 HKDF vectors and replay-window regressions
+bench/bench_handshake.py                 handshake latency, serialized sizes, raw samples
+bench/bench_payload.py                   payload encryption/decryption timing and throughput
+scripts/run_security_suite.py             identity repair + T1–T9 + TCP transport test launcher
+scripts/run_reproducible_benchmarks.py    one-command validation and isolated evidence bundle
+scripts/make_figures.py                   figures from CSV inputs
+scripts/provision_identities.py           local test identities + identities/trust_store.test.json
+docs/TECHNICAL_REPORT.md                  methodology, evidence and analysis
+docs/INTEGRATION_CONTRACT.md               UX/protocol integration contract
+results/                                  committed CSV evidence and figures
+data/payloads/payload_sha256.txt           official payload SHA-256 manifest
+Phase One/                                archived Phase 1 submission material
 ```
 
 ## Team members and submission contact
