@@ -697,3 +697,52 @@ identity keys/seeds and generated public `trust_store.test.json`; enforced
 by `.gitignore`), `data/payloads/*.bin` (regenerable from the deterministic
 generator and verified against the committed SHA-256 manifest), virtualenvs
 and caches.
+
+# Technical Report Addendum — Platform D Real-Network Experiment
+
+**Purpose:** Append this section to `docs/TECHNICAL_REPORT.md`. This is an addendum, not a replacement for the existing technical report.
+
+## Experiment identity and setup
+
+- **Run ID:** `D_20261030_WIFI01`
+- **Suite:** `QFF26-PQC-1` (ML-KEM-768 + ML-DSA-65)
+- **Transport:** TCP, port `8766`
+- **Topology:** two physical devices on the same local network — Alice (macOS client) and Bob (Linux server).
+- **Sessions:** 5/5 completed on each endpoint.
+- **Evidence:** `results/platform_d/D_20261030_WIFI01_QFF26-PQC-1_client.json`, `results/platform_d/D_20261030_WIFI01_QFF26-PQC-1_server.json`, and `results/platform_d/environment_alice.json`.
+- **Reproduction instructions:** `docs/PLATFORM_D_RUNBOOK.md`.
+
+## Results
+
+| Metric | Observed result |
+|---|---:|
+| Client TCP connect median | 12.2692 ms |
+| Client handshake median | 20.2886 ms |
+| Server handshake median | 20.8864 ms |
+| 1 KiB round-trip median | 31.1378 ms |
+| 100 KiB round-trip median | 57.3847 ms |
+| 10 MiB round-trip median | 1,773.4343 ms |
+| 10 MiB round-trip goodput | 11.278 MiB/s |
+
+The client reported that all echoed records matched and that authenticated close was sent. The server recorded 30 verified application records and 105,891,840 plaintext bytes sent/received.
+
+## Interpretation
+
+This run demonstrates that the PQC secure-channel implementation completed an end-to-end exchange across two physical devices over a real TCP network. These measurements include network and endpoint effects and must not be merged into the local/in-process benchmark tables.
+
+The data are descriptive measurements from one run. They do not establish a general performance distribution or prove that PQC is faster or slower than a classical suite over the same link.
+
+## Limitations and next steps
+
+- Only one PQC real-network run is currently recorded.
+- No classical real-network baseline has been run; therefore, no comparative PQC-versus-classical claim is supported.
+- Packet loss and congestion were not independently measured.
+- Platform B (the official constrained profile) remains untested.
+- Repeat multiple runs and record environment/network conditions; then run a matched classical baseline using the same endpoints, payloads, trial count, and measurement method.
+
+## Evidence files
+
+- `results/platform_d/D_20261030_WIFI01_QFF26-PQC-1_client.json`
+- `results/platform_d/D_20261030_WIFI01_QFF26-PQC-1_server.json`
+- `results/platform_d/environment_alice.json`
+- `docs/PLATFORM_D_RUNBOOK.md`

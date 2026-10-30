@@ -62,3 +62,29 @@ The UX layer consumes the T1–T9 CSV summary; it is never a participant in the 
 
 Any change to invariants I1-I5 or to the wire format requires a new signed revision
 of this document and protocol-lead approval.
+
+# Integration Contract Addendum — Platform D TCP Endpoint
+
+**Purpose:** Append this note to `docs/INTEGRATION_CONTRACT.md` if the contract should document the optional real-network entry point. The existing protocol and integration contract remain authoritative.
+
+## Optional two-device execution
+
+Platform D exposes the existing secure-channel protocol through a TCP transport. The TCP transport carries serialized protocol frames; it does not change the cryptographic protocol or the channel state machine. Suite selection remains local policy at both endpoints and is not negotiated on the wire.
+
+Server (Bob/Linux):
+
+```bash
+.venv/bin/python -m cli.platform_d --role server --suite QFF26-PQC-1 --run-id D_20261030_WIFI01 --bind-host 0.0.0.0
+```
+
+Client (Alice/macOS):
+
+```bash
+.venv/bin/python -m cli.platform_d --role client --suite QFF26-PQC-1 --run-id D_20261030_WIFI01 --host <BOB_LAN_IP>
+```
+
+Both endpoints must use the same suite and run ID. Permit TCP port `8766` only as required by the local test network; do not expose the prototype broadly to the public internet. Use the runbook for full setup and evidence collection.
+
+## Current validation status
+
+The recorded run completed five sessions on both endpoints. The client reported echoed records matched and authenticated close sent. The server recorded 30 verified application records. These results validate the observed test path only; they are not a production security certification and do not establish comparative performance without a matched classical real-network baseline.
