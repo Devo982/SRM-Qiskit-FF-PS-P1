@@ -1,0 +1,40 @@
+{
+  "platform_label": "D",
+  "os": "Darwin",
+  "os_version": "15.8.2",
+  "machine": "x86_64",
+  "cpu_model": "Intel(R) Core(TM) i5-8257U CPU @ 1.40GHz",
+  "physical_cores": 4,
+  "logical_cores": 8,
+  "cpu_max_mhz": 1400.0,
+  "ram_total_gb": 8.0,
+  "on_battery": true,
+  "generated_utc": "2026-10-30T06:15:01+00:00",
+  "kit": "Qiskit Fall Fest 2026 - PS-P1 Quantum-Safe Secure Communication Channel",
+  "phase": 2,
+  "python": {
+    "version": "3.13.17",
+    "implementation": "CPython"
+  },
+  "platform": {
+    "system": "Darwin",
+    "release": "24.6.0",
+    "machine": "x86_64",
+    "description": "macOS-15.8.2-x86_64-i386-64bit-Mach-O"
+  },
+  "crypto": {
+    "cryptography_version": "50.0.2",
+    "openssl_runtime": "OpenSSL 3.5.9 29 Sep 2026",
+    "install_origin": "sdist source build (no official macOS x86_64 wheel for cryptography 50.0.2); statically linked local OpenSSL - see README platform notes",
+    "pqcrypto_version": null,
+    "pqcrypto_required_for_PS_P1": false
+  },
+  "primitives_verified": [
+    "ML-KEM-768",
+    "ML-DSA-65",
+    "X25519",
+    "Ed25519",
+    "HKDF-SHA256",
+    "AES-256-GCM"
+  ]
+}

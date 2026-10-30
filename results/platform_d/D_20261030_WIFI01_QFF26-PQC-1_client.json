@@ -1,0 +1,355 @@
+{
+  "configuration": {
+    "payload_sizes_bytes": [
+      1024,
+      102400,
+      10485760
+    ],
+    "port": 8766,
+    "rounds_per_payload": 2,
+    "sessions": 5,
+    "transport": "TCP"
+  },
+  "created_utc": "2026-10-30T06:48:01+00:00",
+  "environment": {
+    "hostname": "Anudeeps-MacBook-Pro.local",
+    "logical_cores": 8,
+    "machine": "x86_64",
+    "on_battery": true,
+    "os": "Darwin",
+    "os_release": "24.6.0",
+    "packages": {
+      "cryptography": "50.0.2",
+      "psutil": "7.2.2"
+    },
+    "physical_cores": 4,
+    "processor": "i386",
+    "python": "3.13.17",
+    "ram_total_gb": 8.0
+  },
+  "experiment": "two-device real-link TCP secure-channel experiment",
+  "platform_label": "D",
+  "raw_application_samples": [
+    {
+      "payload_bytes_each_direction": 1024,
+      "round": 1,
+      "round_trip_goodput_mib_s": 0.0369,
+      "round_trip_ms": 52.9152,
+      "session": 1
+    },
+    {
+      "payload_bytes_each_direction": 1024,
+      "round": 2,
+      "round_trip_goodput_mib_s": 0.3576,
+      "round_trip_ms": 5.4624,
+      "session": 1
+    },
+    {
+      "payload_bytes_each_direction": 102400,
+      "round": 1,
+      "round_trip_goodput_mib_s": 3.096,
+      "round_trip_ms": 63.0857,
+      "session": 1
+    },
+    {
+      "payload_bytes_each_direction": 102400,
+      "round": 2,
+      "round_trip_goodput_mib_s": 6.5414,
+      "round_trip_ms": 29.858,
+      "session": 1
+    },
+    {
+      "payload_bytes_each_direction": 10485760,
+      "round": 1,
+      "round_trip_goodput_mib_s": 11.899,
+      "round_trip_ms": 1680.8146,
+      "session": 1
+    },
+    {
+      "payload_bytes_each_direction": 10485760,
+      "round": 2,
+      "round_trip_goodput_mib_s": 9.5314,
+      "round_trip_ms": 2098.3377,
+      "session": 1
+    },
+    {
+      "payload_bytes_each_direction": 1024,
+      "round": 1,
+      "round_trip_goodput_mib_s": 0.0322,
+      "round_trip_ms": 60.6221,
+      "session": 2
+    },
+    {
+      "payload_bytes_each_direction": 1024,
+      "round": 2,
+      "round_trip_goodput_mib_s": 0.2254,
+      "round_trip_ms": 8.6657,
+      "session": 2
+    },
+    {
+      "payload_bytes_each_direction": 102400,
+      "round": 1,
+      "round_trip_goodput_mib_s": 1.921,
+      "round_trip_ms": 101.6735,
+      "session": 2
+    },
+    {
+      "payload_bytes_each_direction": 102400,
+      "round": 2,
+      "round_trip_goodput_mib_s": 5.6243,
+      "round_trip_ms": 34.7268,
+      "session": 2
+    },
+    {
+      "payload_bytes_each_direction": 10485760,
+      "round": 1,
+      "round_trip_goodput_mib_s": 11.2118,
+      "round_trip_ms": 1783.8329,
+      "session": 2
+    },
+    {
+      "payload_bytes_each_direction": 10485760,
+      "round": 2,
+      "round_trip_goodput_mib_s": 13.8065,
+      "round_trip_ms": 1448.5963,
+      "session": 2
+    },
+    {
+      "payload_bytes_each_direction": 1024,
+      "round": 1,
+      "round_trip_goodput_mib_s": 0.0359,
+      "round_trip_ms": 54.3587,
+      "session": 3
+    },
+    {
+      "payload_bytes_each_direction": 1024,
+      "round": 2,
+      "round_trip_goodput_mib_s": 0.306,
+      "round_trip_ms": 6.382,
+      "session": 3
+    },
+    {
+      "payload_bytes_each_direction": 102400,
+      "round": 1,
+      "round_trip_goodput_mib_s": 3.0631,
+      "round_trip_ms": 63.7634,
+      "session": 3
+    },
+    {
+      "payload_bytes_each_direction": 102400,
+      "round": 2,
+      "round_trip_goodput_mib_s": 8.6501,
+      "round_trip_ms": 22.5792,
+      "session": 3
+    },
+    {
+      "payload_bytes_each_direction": 10485760,
+      "round": 1,
+      "round_trip_goodput_mib_s": 11.3441,
+      "round_trip_ms": 1763.0357,
+      "session": 3
+    },
+    {
+      "payload_bytes_each_direction": 10485760,
+      "round": 2,
+      "round_trip_goodput_mib_s": 7.0423,
+      "round_trip_ms": 2839.9883,
+      "session": 3
+    },
+    {
+      "payload_bytes_each_direction": 1024,
+      "round": 1,
+      "round_trip_goodput_mib_s": 0.0356,
+      "round_trip_ms": 54.7911,
+      "session": 4
+    },
+    {
+      "payload_bytes_each_direction": 1024,
+      "round": 2,
+      "round_trip_goodput_mib_s": 0.2087,
+      "round_trip_ms": 9.3604,
+      "session": 4
+    },
+    {
+      "payload_bytes_each_direction": 102400,
+      "round": 1,
+      "round_trip_goodput_mib_s": 2.3273,
+      "round_trip_ms": 83.9239,
+      "session": 4
+    },
+    {
+      "payload_bytes_each_direction": 102400,
+      "round": 2,
+      "round_trip_goodput_mib_s": 3.6843,
+      "round_trip_ms": 53.012,
+      "session": 4
+    },
+    {
+      "payload_bytes_each_direction": 10485760,
+      "round": 1,
+      "round_trip_goodput_mib_s": 11.0061,
+      "round_trip_ms": 1817.1675,
+      "session": 4
+    },
+    {
+      "payload_bytes_each_direction": 10485760,
+      "round": 2,
+      "round_trip_goodput_mib_s": 12.2875,
+      "round_trip_ms": 1627.6713,
+      "session": 4
+    },
+    {
+      "payload_bytes_each_direction": 1024,
+      "round": 1,
+      "round_trip_goodput_mib_s": 0.0351,
+      "round_trip_ms": 55.6672,
+      "session": 5
+    },
+    {
+      "payload_bytes_each_direction": 1024,
+      "round": 2,
+      "round_trip_goodput_mib_s": 0.2659,
+      "round_trip_ms": 7.3453,
+      "session": 5
+    },
+    {
+      "payload_bytes_each_direction": 102400,
+      "round": 1,
+      "round_trip_goodput_mib_s": 3.1626,
+      "round_trip_ms": 61.7574,
+      "session": 5
+    },
+    {
+      "payload_bytes_each_direction": 102400,
+      "round": 2,
+      "round_trip_goodput_mib_s": 6.609,
+      "round_trip_ms": 29.5527,
+      "session": 5
+    },
+    {
+      "payload_bytes_each_direction": 10485760,
+      "round": 1,
+      "round_trip_goodput_mib_s": 11.1134,
+      "round_trip_ms": 1799.6237,
+      "session": 5
+    },
+    {
+      "payload_bytes_each_direction": 10485760,
+      "round": 2,
+      "round_trip_goodput_mib_s": 12.2202,
+      "round_trip_ms": 1636.6324,
+      "session": 5
+    }
+  ],
+  "raw_client_handshake_ms": [
+    50.98438500135671,
+    16.90117400721647,
+    22.46934300637804,
+    20.288593994337134,
+    18.948286000522785
+  ],
+  "raw_session_duration_ms": [
+    4080.9566759999143,
+    3562.3922439990565,
+    4856.3099750026595,
+    3757.8551760088885,
+    3698.7940999970306
+  ],
+  "raw_tcp_connect_ms": [
+    22.572365996893495,
+    29.130726994480938,
+    6.44757499685511,
+    12.269166996702552,
+    9.965143006411381
+  ],
+  "role": "client",
+  "run_id": "D_20261030_WIFI01",
+  "schema_version": 1,
+  "suite": "QFF26-PQC-1",
+  "summary": {
+    "application_by_payload": [
+      {
+        "payload_bytes_each_direction": 1024,
+        "round_trip_goodput_mib_s": {
+          "max": 0.3576,
+          "median": 0.1228,
+          "min": 0.0322,
+          "n": 10,
+          "p95": 0.3344,
+          "unit": "MiB/s"
+        },
+        "round_trip_ms": {
+          "max": 60.6221,
+          "median": 31.1378,
+          "min": 5.4624,
+          "n": 10,
+          "p95": 58.3924,
+          "unit": "ms"
+        }
+      },
+      {
+        "payload_bytes_each_direction": 102400,
+        "round_trip_goodput_mib_s": {
+          "max": 8.6501,
+          "median": 3.4234,
+          "min": 1.921,
+          "n": 10,
+          "p95": 7.7316,
+          "unit": "MiB/s"
+        },
+        "round_trip_ms": {
+          "max": 101.6735,
+          "median": 57.3847,
+          "min": 22.5792,
+          "n": 10,
+          "p95": 93.6862,
+          "unit": "ms"
+        }
+      },
+      {
+        "payload_bytes_each_direction": 10485760,
+        "round_trip_goodput_mib_s": {
+          "max": 13.8065,
+          "median": 11.278,
+          "min": 7.0423,
+          "n": 10,
+          "p95": 13.1229,
+          "unit": "MiB/s"
+        },
+        "round_trip_ms": {
+          "max": 2839.9883,
+          "median": 1773.4343,
+          "min": 1448.5963,
+          "n": 10,
+          "p95": 2506.2455,
+          "unit": "ms"
+        }
+      }
+    ],
+    "client_handshake_ms": {
+      "max": 50.9844,
+      "median": 20.2886,
+      "min": 16.9012,
+      "n": 5,
+      "p95": 45.2814,
+      "unit": "ms"
+    },
+    "session_duration_ms": {
+      "max": 4856.31,
+      "median": 3757.8552,
+      "min": 3562.3922,
+      "n": 5,
+      "p95": 4701.2393,
+      "unit": "ms"
+    },
+    "successful_sessions": 5,
+    "tcp_connect_ms": {
+      "max": 29.1307,
+      "median": 12.2692,
+      "min": 6.4476,
+      "n": 5,
+      "p95": 27.8191,
+      "unit": "ms"
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "configuration": {
+    "payload_sizes_bytes": [
+      1024,
+      102400,
+      10485760
+    ],
+    "port": 8766,
+    "rounds_per_payload": 2,
+    "sessions": 5,
+    "transport": "TCP"
+  },
+  "created_utc": "2026-10-30T06:48:01+00:00",
+  "environment": {
+    "hostname": "devo-laptop",
+    "logical_cores": 16,
+    "machine": "x86_64",
+    "on_battery": false,
+    "os": "Linux",
+    "os_release": "7.2.5-3-omarchy",
+    "packages": {
+      "cryptography": "50.0.2",
+      "psutil": "7.2.2"
+    },
+    "physical_cores": 8,
+    "processor": null,
+    "python": "3.13.18",
+    "ram_total_gb": 15.035
+  },
+  "experiment": "two-device real-link TCP secure-channel experiment",
+  "platform_label": "D",
+  "raw_server_handshake_ms": [
+    51.50422899896512,
+    14.708220000102301,
+    23.552614000436733,
+    20.886397000140278,
+    20.371945998704177
+  ],
+  "raw_server_session_duration_ms": [
+    4074.008450999827,
+    3531.048130000272,
+    4952.537466999274,
+    3791.9460159992013,
+    3723.1706229995325
+  ],
+  "role": "server",
+  "run_id": "D_20261030_WIFI01",
+  "schema_version": 1,
+  "suite": "QFF26-PQC-1",
+  "summary": {
+    "received_plaintext_bytes": 105891840,
+    "sent_plaintext_bytes": 105891840,
+    "server_handshake_ms": {
+      "max": 51.5042,
+      "median": 20.8864,
+      "min": 14.7082,
+      "n": 5,
+      "p95": 45.9139,
+      "unit": "ms"
+    },
+    "server_session_duration_ms": {
+      "max": 4952.5375,
+      "median": 3791.946,
+      "min": 3531.0481,
+      "n": 5,
+      "p95": 4776.8317,
+      "unit": "ms"
+    },
+    "successful_sessions": 5,
+    "verified_application_records": 30
+  }
+}
