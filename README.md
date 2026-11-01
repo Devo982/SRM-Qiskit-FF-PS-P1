@@ -461,6 +461,6 @@ Phase One/                                archived Phase 1 submission material
 
 | Role | Name | Contact |
 |---|---|---|
-| Primary repository contact | Vasisht Hire | [Devo982/SRM-Qiskit-FF-PS-P1](https://github.com/Devo982/SRM-Qiskit-FF-PS-P1.git) |
+| Primary repository contact | Vasisht Hire and Devansh Joshi | [Devo982/SRM-Qiskit-FF-PS-P1](https://github.com/Devo982/SRM-Qiskit-FF-PS-P1.git) |
 
 Registered team members: Devansh Joshi and Vasisht Hire. Add any organizer-required contact details before final submission.
